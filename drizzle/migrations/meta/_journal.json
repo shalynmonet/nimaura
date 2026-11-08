@@ -78,6 +78,13 @@
       "when": 1794103924676,
       "tag": "0010_bind_testnet_payout_reference_to_payout_id",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1794110267690,
+      "tag": "0011_durable_collector_submission_outcomes",
+      "breakpoints": true
     }
   ]
 }

@@ -1,4 +1,6 @@
 # NIMAURA roadmap
+- [x] Fifth purchase diagnosed: pending/null hash, no matching recipient-history candidate; original wallet outcome unknowable from old logs. Normal preview checker confirms unresolved, no payment requested/published.
+- [x] Durable candidate-only outcomes, watchdog/late-hash recovery, duplicate guards, active-only paced checks and history discovery; focused recovery/database/contract tests/build OK. Four collectibles/two payouts/zero credits remain.
 - [x] Explicit saved contentVersion 2 selects deterministic trait-specific future writing; unmarked v1/v2 collectibles retain original text. Financial/account code and saved rows unchanged.
 - [x] Eight same-entity samples (88–94 words) with trait summaries saved for review; 11 focused tests/build OK; real legacy encounter preserved and browser-only future fixture stable across refresh at phone size. Not published.
 - [x] Isolated `/art-study` renderer-03 fixed sample: curved UV-woven ribbons, eye, occluding metallic rings and bounded gestures; 11 focused tests/build OK, phone/desktop screenshots, browser touch drag, hold/release/tap/reduced-motion and offscreen pause verified; short capture saved. Not adopted or published; actual iPhone performance awaits device review.

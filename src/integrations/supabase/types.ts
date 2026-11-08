@@ -184,6 +184,7 @@ export type Database = {
       nimiq_payment_quotes: {
         Row: {
           amount_luna: number
+          candidate_tx_hash: string | null
           config: Json
           created_at: string
           drop_id: string
@@ -200,6 +201,9 @@ export type Database = {
           seed: number
           sender: string
           status: string
+          submission_detail: string | null
+          submission_outcome: string
+          submission_started_at: string | null
           tx_hash: string | null
           user_id: string
           validity_start_height: number
@@ -207,6 +211,7 @@ export type Database = {
         }
         Insert: {
           amount_luna: number
+          candidate_tx_hash?: string | null
           config: Json
           created_at?: string
           drop_id: string
@@ -223,6 +228,9 @@ export type Database = {
           seed: number
           sender: string
           status?: string
+          submission_detail?: string | null
+          submission_outcome?: string
+          submission_started_at?: string | null
           tx_hash?: string | null
           user_id: string
           validity_start_height: number
@@ -230,6 +238,7 @@ export type Database = {
         }
         Update: {
           amount_luna?: number
+          candidate_tx_hash?: string | null
           config?: Json
           created_at?: string
           drop_id?: string
@@ -246,6 +255,9 @@ export type Database = {
           seed?: number
           sender?: string
           status?: string
+          submission_detail?: string | null
+          submission_outcome?: string
+          submission_started_at?: string | null
           tx_hash?: string | null
           user_id?: string
           validity_start_height?: number
@@ -777,6 +789,16 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      record_collector_submission: {
+        Args: {
+          _detail?: string
+          _hash?: string
+          _id: string
+          _outcome: string
+          _user_id: string
+        }
+        Returns: undefined
       }
       reserve_nimiq_rpc_slot: {
         Args: { _cost: number; _key: string }

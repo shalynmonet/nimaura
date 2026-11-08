@@ -7,6 +7,7 @@ export type Quote = {
   id: string; network: Network; recipient: string; sender: string; amountLuna: number;
   savingsLuna: number; rate: number; expiresAt: string; validityStartHeight: number;
   status: string; txHash: string | null; manifestationId: string | null; retryAfterMs?: number;
+  submissionOutcome?: string; candidateTxHash?: string | null; submissionStartedAt?: string | null; submissionDetail?: string | null;
 };
 let providerPromise: Promise<NimiqProvider> | undefined;
 export async function hostNetwork(): Promise<Network | undefined> {
@@ -58,7 +59,7 @@ export async function walletError(error: unknown) {
   if (NimiqProviderError.is(error)) {
     if (error.type === "PERMISSION_DENIED") return "Wallet request canceled. Nothing was changed.";
     if (error.type === "NETWORK_ERROR") return "Wallet network error. Check payment status before trying again.";
-    return "Nimiq Pay could not complete the request. Please try again.";
+    return "Nimiq Pay could not complete the request. Check this purchase; do not request another payment.";
   }
   return error instanceof Error ? error.message : "Wallet request could not be completed.";
 }
