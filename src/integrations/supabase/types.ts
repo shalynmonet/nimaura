@@ -128,6 +128,7 @@ export type Database = {
           payment_id: string | null
           seed: number
           source: string
+          testnet_quote_id: string | null
           user_id: string
         }
         Insert: {
@@ -140,6 +141,7 @@ export type Database = {
           payment_id?: string | null
           seed: number
           source: string
+          testnet_quote_id?: string | null
           user_id: string
         }
         Update: {
@@ -152,6 +154,7 @@ export type Database = {
           payment_id?: string | null
           seed?: number
           source?: string
+          testnet_quote_id?: string | null
           user_id?: string
         }
         Relationships: [
@@ -167,6 +170,13 @@ export type Database = {
             columns: ["entity_id"]
             isOneToOne: false
             referencedRelation: "entities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "manifestations_testnet_quote_id_fkey"
+            columns: ["testnet_quote_id"]
+            isOneToOne: false
+            referencedRelation: "nimiq_payment_quotes"
             referencedColumns: ["id"]
           },
         ]
@@ -257,6 +267,33 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      nimiq_rpc_coordination: {
+        Row: {
+          expires_at: string | null
+          key: string
+          lease_token: string | null
+          lease_until: string | null
+          next_at: string
+          payload: Json | null
+        }
+        Insert: {
+          expires_at?: string | null
+          key: string
+          lease_token?: string | null
+          lease_until?: string | null
+          next_at?: string
+          payload?: Json | null
+        }
+        Update: {
+          expires_at?: string | null
+          key?: string
+          lease_token?: string | null
+          lease_until?: string | null
+          next_at?: string
+          payload?: Json | null
+        }
+        Relationships: []
       }
       nimiq_wallet_challenges: {
         Row: {
@@ -680,6 +717,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      claim_nimiq_rpc_cache: { Args: { _key: string }; Returns: string }
       claim_testnet_payout: {
         Args: {
           _expires: string
@@ -721,6 +759,10 @@ export type Database = {
         Args: { _id: string; _public_key: string; _user_id: string }
         Returns: string
       }
+      defer_nimiq_rpc: {
+        Args: { _key: string; _until: string }
+        Returns: undefined
+      }
       fulfill_testnet_payment: {
         Args: { _hash: string; _id: string; _user_id: string }
         Returns: string
@@ -735,6 +777,10 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      reserve_nimiq_rpc_slot: {
+        Args: { _cost: number; _key: string }
+        Returns: string
       }
       simulate_paid_unseal: {
         Args: {

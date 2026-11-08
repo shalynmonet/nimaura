@@ -7,6 +7,7 @@ vi.mock('@tanstack/react-start', () => ({ createServerFn: () => {
   return builder;
 } }));
 vi.mock('@/integrations/supabase/auth-middleware', () => ({ requireSupabaseAuth: {} }));
+vi.mock('./rpc-coordination.server', () => ({rpcCoordination: () => ({})}));
 vi.mock('./rpc.server', () => ({ networkHead: m.network, rpc: m.broadcast }));
 vi.mock('./hub-verification', () => ({ verifyHubTransaction: m.verify }));
 vi.mock('./verification', () => ({ verifyWalletSignature: m.walletVerify }));

@@ -1,20 +1,25 @@
 # NIMAURA roadmap
+- [x] Repair: reversibly set payment enable configuration OFF; preserve mainnet/payout settings and do not publish.
+- [x] Repair: bounded paced macro finality with durable caching/coalescing, retry delays and live budget checks.
+- [x] Validate the supplied genuine historical hash through read-only verification only; never issue from this fixture.
+- [x] Repair: atomic private TESTNET collectible and pending 50% payout with replay/concurrency/RLS tests.
+- [x] Repair: wrap mobile intention options and inspect authenticated unseal/Vault.
 - [x] Phase 1: visual identity, Arrival, countdown, Resonance, reveal, Vault
 - [x] Phase 2: auth, 2 complimentary credits, persistence, Reserve dashboard
 - [x] Connect documented Nimiq SDK and implement collector/Reserve wallet ownership with expiring signed challenges.
 - [x] Add gated server payment quotes, network-isolated payment checks and replay-safe fulfillment; lock simulator.
 - [x] Verify SDK calls and payment/security rules with unit tests and live database grant checks.
-- [ ] Verify signed-in wallet/Reserve flow end-to-end (requires a signed-up collector; auth currently has no users).
+- [x] Verify signed-in collector wallet/Reserve records and Account visibility; proofs were completed by SHA-I on device.
 - [ ] Test wallet operations inside Nimiq Pay (requires device-host access).
 - [x] Testnet: restrict live grants and verify collector/anonymous mutation denial.
 - [x] Testnet: validated Albatross verifier, isolated atomic payment fulfillment and adversarial tests.
 - [x] Testnet: admin-only manual payout queue, destination snapshots, atomic claims and reference reconciliation.
 - [x] Testnet: verify public UI, database rules and tests.
-- [ ] Testnet: signed-in admin/device payment and delivery end-to-end awaits collector/admin account, configuration and Nimiq Pay access.
+- [ ] Testnet: actual device payment/collectible/delivery end-to-end awaits explicit activation and device access; not authorized during repairs.
 - [x] Assess separate official testnet web Wallet signing; Pay cannot select these wallets. Document minimal Hub path and strict manual-hash reconciliation.
 - [x] Implement browser-only testnet Hub Reserve/treasury signing, durable redirect state, private signed-byte storage and single broadcast.
 - [x] Verify Hub negative signature/intent/state/replay tests and existing regression checks.
-- [x] Confirm collector Reserve link verified on testnet; no admin roles granted.
+- [x] Confirm collector Reserve link and previously authorized admin role on testnet; no further grants during repairs.
 - [x] Adapt verifier to documented public node (no getNetworkId, error-shaped unknown hash, 429 retries); live macro finality/ancestry verified.
 - [x] Configure NIMIQ_TESTNET_RPC_URL after successful probes; payment/payout switches remain OFF.
 - [ ] Validate actual iOS browser/Pay handoff (requires device access; native handoff remains gated).

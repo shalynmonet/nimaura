@@ -1,7 +1,9 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { findPayoutHashes, networkHead, verifyTransfer, type TrustedRpc } from "./rpc.server";
+import { findPayoutHashes, networkHead, verifyTransfer, type TrustedRpc, RpcPending } from "./rpc.server";
+
+import { rpcCoordination } from "./rpc-coordination.server";
 
 const input = z.object({ id: z.string().uuid() });
 export const payoutAccess = createServerFn({ method: "POST" }).middleware([requireSupabaseAuth]).handler(async ({ context }) => {
@@ -25,9 +27,9 @@ export const claimPayout = createServerFn({ method: "POST" }).middleware([requir
   if (link.error || !link.data) throw new Error("Verify the treasury signer first. Separate web Wallet approval requires Hub support.");
   const url = process.env["NIMIQ_TESTNET_RPC_URL"];
   if (!url) throw new Error("Trusted testnet RPC required.");
-  const service: TrustedRpc = { url, authorization: process.env["NIMIQ_TESTNET_RPC_AUTHORIZATION"] };
-  const head = await networkHead(service, "testnet");
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const service: TrustedRpc = { url, coordination: rpcCoordination(supabaseAdmin), authorization: process.env["NIMIQ_TESTNET_RPC_AUTHORIZATION"] };
+  const head = await networkHead(service, "testnet");
   const result = await supabaseAdmin.rpc("claim_testnet_payout", { _id: data.id, _operator: context.userId, _height: head.number, _expires: new Date(Date.now() + 300_000).toISOString() });
   if (result.error) throw new Error("Already claimed or unavailable. Reconcile; never resend.");
   return result.data;
@@ -44,14 +46,18 @@ export const reconcilePayout = createServerFn({ method: "POST" }).middleware([re
   if (p.status !== "uncertain" || !p.claim_token || !p.claimed_by || !p.claimed_at || p.validity_start_height === null || !p.expires_at) throw new Error("Claim required.");
   const url = process.env["NIMIQ_TESTNET_RPC_URL"];
   if (!url) throw new Error("Trusted testnet RPC required.");
-  const service: TrustedRpc = { url, authorization: process.env["NIMIQ_TESTNET_RPC_AUTHORIZATION"] };
+  const service: TrustedRpc = { url, coordination: rpcCoordination(supabaseAdmin), authorization: process.env["NIMIQ_TESTNET_RPC_AUTHORIZATION"] };
   if (p.tx_hash && data.txHash && p.tx_hash !== data.txHash.toLowerCase()) throw new Error('Stored payout hash cannot be replaced.');
-  const hashes = p.tx_hash ? [p.tx_hash] : data.txHash ? [data.txHash.toLowerCase()] : await findPayoutHashes(service, p.treasury_sender, p.reference);
+  let hashes: string[];
+  try { hashes = p.tx_hash ? [p.tx_hash] : data.txHash ? [data.txHash.toLowerCase()] : await findPayoutHashes(service, p.treasury_sender, p.reference); }
+  catch (error) { if (error instanceof RpcPending) return { status: 'uncertain', retryAfterMs: error.retryAfterMs }; throw error; }
   if (data.txHash && !hashes.includes(data.txHash.toLowerCase())) hashes.push(data.txHash.toLowerCase());
   if (hashes.length > 1) throw new Error("Multiple transfers may match. Manual investigation required; never resend.");
   const hash = hashes[0];
   if (!hash) return { status: "uncertain" };
-  const verified = await verifyTransfer(service, { txHash: hash, sender: p.treasury_sender, recipient: p.reserve_destination, amountLuna: p.amount_luna, network: "testnet", validityStartHeight: p.validity_start_height, createdAt: p.claimed_at, expiresAt: p.expires_at }, p.reference);
+  let verified: boolean;
+  try { verified = await verifyTransfer(service, { txHash: hash, sender: p.treasury_sender, recipient: p.reserve_destination, amountLuna: p.amount_luna, network: "testnet", validityStartHeight: p.validity_start_height, createdAt: p.claimed_at, expiresAt: p.expires_at }, p.reference);
+  } catch (error) { if (error instanceof RpcPending) return { status: "uncertain", retryAfterMs: error.retryAfterMs }; throw error; }
   if (!verified) return { status: "uncertain" };
   // Allow another admin to reconcile, while SQL binds completion to the original durable claim.
   const completed = await supabaseAdmin.rpc("complete_testnet_payout", { _id: p.id, _operator: p.claimed_by, _token: p.claim_token, _hash: hash });

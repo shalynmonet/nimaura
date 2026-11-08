@@ -1,0 +1,3 @@
+CREATE FUNCTION public.defer_nimiq_rpc(_key text,_until timestamptz) RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path=public AS $$ BEGIN IF _key IS NULL OR _until IS NULL THEN RAISE EXCEPTION 'Retry gate required'; END IF; INSERT INTO public.nimiq_rpc_coordination(key,next_at) VALUES(_key,_until) ON CONFLICT(key) DO UPDATE SET next_at=greatest(public.nimiq_rpc_coordination.next_at,excluded.next_at); END $$;
+REVOKE ALL ON FUNCTION public.defer_nimiq_rpc(text,timestamptz) FROM PUBLIC,anon,authenticated;
+GRANT EXECUTE ON FUNCTION public.defer_nimiq_rpc(text,timestamptz) TO service_role;

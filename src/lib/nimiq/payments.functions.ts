@@ -3,7 +3,8 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { buildManifestation, newSeed, INTENTIONS } from "@/lib/manifest";
 import { isValidNimiqAddress, normalizeAddress, quoteAmounts, QUOTE_TTL_MS, requireUnexpired } from "./rules";
-import { networkHead, verifyTransfer, type TrustedRpc } from "./rpc.server";
+import { networkHead, verifyTransfer, type TrustedRpc, RpcPending } from "./rpc.server";
+import { rpcCoordination } from "./rpc-coordination.server";
 import type { Quote } from "./index";
 import type { Database } from "@/integrations/supabase/types";
 
@@ -40,7 +41,7 @@ export const createPaymentQuote = createServerFn({ method: "POST" }).middleware(
   const { data: drop } = await supabaseAdmin.from("daily_drops").select("*").eq("id", data.dropId).single();
   const now = Date.now();
   if (!drop || now < Date.parse(drop.starts_at) || now >= Date.parse(drop.ends_at)) throw new Error("This drop is closed.");
-  const service: TrustedRpc = { url, authorization: process.env["NIMIQ_TESTNET_RPC_AUTHORIZATION"] };
+  const service: TrustedRpc = { url, authorization: process.env["NIMIQ_TESTNET_RPC_AUTHORIZATION"], coordination: rpcCoordination(supabaseAdmin) };
   const head = await networkHead(service, "testnet");
   let rate: number;
   try {
@@ -77,9 +78,14 @@ export const checkPayment = createServerFn({ method: "POST" }).middleware([requi
   if (q.tx_hash && data.txHash && q.tx_hash !== data.txHash.toLowerCase()) throw new Error("A different transaction is assigned. Reconciliation required.");
   const url = process.env["NIMIQ_TESTNET_RPC_URL"];
   if (!url) throw new Error("Trusted testnet verification is not configured.");
-  const service: TrustedRpc = { url, authorization: process.env["NIMIQ_TESTNET_RPC_AUTHORIZATION"] };
+  const service: TrustedRpc = { url, authorization: process.env["NIMIQ_TESTNET_RPC_AUTHORIZATION"], coordination: rpcCoordination(supabaseAdmin) };
   const expected = { txHash: hash, sender: q.sender, recipient: q.recipient, amountLuna: q.amount_luna, network: "testnet" as const, validityStartHeight: q.validity_start_height, createdAt: q.created_at, expiresAt: q.expires_at };
-  if (!await verifyTransfer(service, expected)) return { ...dto(q), status: "pending" };
+  try {
+    if (!await verifyTransfer(service, expected)) return { ...dto(q), status: "pending", retryAfterMs: 10_000 };
+  } catch (error) {
+    if (error instanceof RpcPending) return { ...dto(q), status: "pending", retryAfterMs: error.retryAfterMs };
+    throw error;
+  }
   // Pin only after trusted finalized verification; bad user input cannot poison a quote.
   if (!q.tx_hash) {
     const saved = await supabaseAdmin.from("nimiq_payment_quotes").update({ tx_hash: hash }).eq("id", q.id).eq("user_id", context.userId).eq("status", "pending").is("tx_hash", null).select("id").single();
@@ -87,5 +93,5 @@ export const checkPayment = createServerFn({ method: "POST" }).middleware([requi
   }
   const result = await supabaseAdmin.rpc("fulfill_testnet_payment", { _id: q.id, _user_id: context.userId, _hash: hash });
   if (result.error) throw new Error("Finalized test payment awaits reconciliation. Do not pay again.");
-  return { ...dto(q), txHash: hash, status: "fulfilled" };
+  return { ...dto(q), txHash: hash, status: "fulfilled", manifestationId: result.data };
 });

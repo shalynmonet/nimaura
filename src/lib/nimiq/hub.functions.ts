@@ -4,6 +4,7 @@ import { requireSupabaseAuth } from '@/integrations/supabase/auth-middleware';
 import { isValidNimiqAddress, normalizeAddress, requireUnexpired } from './rules';
 import { verifyWalletSignature } from './verification';
 import { networkHead, rpc, type TrustedRpc } from './rpc.server';
+import { rpcCoordination } from "./rpc-coordination.server";
 import { verifyHubTransaction } from './hub-verification';
 import type { HubIntent } from './hub';
 
@@ -43,9 +44,9 @@ export const beginHubPayout = createServerFn({ method: 'POST' }).middleware([req
   if (!link.data || link.error) throw new Error('Verify treasury ownership in the browser first.');
   const url = process.env['NIMIQ_TESTNET_RPC_URL'];
   if (!url) throw new Error('Trusted testnet RPC required.');
-  const head = await networkHead({ url, authorization: process.env['NIMIQ_TESTNET_RPC_AUTHORIZATION'] }, 'testnet');
-  const expiresAt = new Date(Date.now() + 300_000).toISOString();
   const { supabaseAdmin } = await import('@/integrations/supabase/client.server');
+  const head = await networkHead({ url, coordination: rpcCoordination(supabaseAdmin), authorization: process.env['NIMIQ_TESTNET_RPC_AUTHORIZATION'] }, 'testnet');
+  const expiresAt = new Date(Date.now() + 300_000).toISOString();
   const claim = await supabaseAdmin.rpc('claim_testnet_payout', { _id: data.id, _operator: context.userId, _height: head.number, _expires: expiresAt });
   if (claim.error) throw new Error('Already claimed. Reconcile; never resend.');
   const id = crypto.randomUUID();
@@ -85,7 +86,7 @@ export const completeHubResult = createServerFn({ method: 'POST' }).middleware([
   const verified = verifyHubTransaction(data.serializedTx, data.hash, { sender: p.treasury_sender, recipient: p.reserve_destination, amountLuna: p.amount_luna, reference: p.reference, validityStartHeight: p.validity_start_height });
   const url = process.env['NIMIQ_TESTNET_RPC_URL'];
   if (!url) throw new Error('Trusted testnet RPC required.');
-  const service: TrustedRpc = { url, authorization: process.env['NIMIQ_TESTNET_RPC_AUTHORIZATION'] };
+  const service: TrustedRpc = { url, coordination: rpcCoordination(supabaseAdmin), authorization: process.env['NIMIQ_TESTNET_RPC_AUTHORIZATION'] };
   await networkHead(service, 'testnet');
   // SQL consumes one-use state, pins hash and stores private bytes under the original atomic claim.
   // Only the winning insert is allowed ONE broadcast. Crashes and unknown results never retry.

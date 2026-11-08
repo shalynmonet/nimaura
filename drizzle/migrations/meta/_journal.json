@@ -57,6 +57,27 @@
       "when": 1794100282062,
       "tag": "0007_hub_result_empty_sentinels",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1794103783411,
+      "tag": "0008_testnet_collectibles_and_rpc_coordination",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1794103820319,
+      "tag": "0009_shared_rpc_retry_gate",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1794103924676,
+      "tag": "0010_bind_testnet_payout_reference_to_payout_id",
+      "breakpoints": true
     }
   ]
 }

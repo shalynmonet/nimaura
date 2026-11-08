@@ -15,7 +15,7 @@ beforeAll(async () => {
   await db.exec(`CREATE ROLE anon; CREATE ROLE authenticated; CREATE ROLE service_role BYPASSRLS;
     CREATE SCHEMA auth; CREATE TABLE auth.users(id uuid PRIMARY KEY,email text,raw_user_meta_data jsonb DEFAULT '{}');
     CREATE FUNCTION auth.uid() RETURNS uuid LANGUAGE sql AS $$ SELECT nullif(current_setting('request.jwt.claim.sub',true),'')::uuid $$; GRANT USAGE ON SCHEMA auth TO anon,authenticated,service_role; GRANT EXECUTE ON FUNCTION auth.uid() TO anon,authenticated,service_role;`);
-  for (const file of ["0000_migration.sql", "0001_verified_nimiq_wallets_and_payment_quotes.sql", "0002_restrict_profile_wallet_and_credit_updates.sql", "0003_isolated_testnet_manual_payouts_and_least_privilege.sql", "0004_harden_testnet_claim_null_guards.sql", "0005_final_testnet_invariants_and_trigger_grants.sql", "0006_private_testnet_hub_requests.sql", "0007_hub_result_empty_sentinels.sql"]) {
+  for (const file of ["0000_migration.sql", "0001_verified_nimiq_wallets_and_payment_quotes.sql", "0002_restrict_profile_wallet_and_credit_updates.sql", "0003_isolated_testnet_manual_payouts_and_least_privilege.sql", "0004_harden_testnet_claim_null_guards.sql", "0005_final_testnet_invariants_and_trigger_grants.sql", "0006_private_testnet_hub_requests.sql", "0007_hub_result_empty_sentinels.sql", "0008_testnet_collectibles_and_rpc_coordination.sql", "0009_shared_rpc_retry_gate.sql", "0010_bind_testnet_payout_reference_to_payout_id.sql"]) {
     await db.exec(readFileSync(`drizzle/migrations/${file}`, "utf8"));
   }
   await db.exec(`INSERT INTO auth.users(id,email) VALUES('${collector}','collector@test.invalid'),('${admin}','admin@test.invalid');
@@ -25,8 +25,19 @@ beforeAll(async () => {
 }, 30_000);
 afterAll(async () => { await db.close(); });
 describe.sequential("real migration authorization and replay", () => {
+  it('serializes the shared IP budget and denies collector coordination access',async()=>{
+    const slots=await Promise.all([1,2,3].map(()=>db.query<{slot:number}>("SELECT extract(epoch from public.reserve_nimiq_rpc_slot('test-gate',1))*1000 AS slot")));
+    const dates=slots.map(s=>Number(s.rows[0]?.slot)).sort((a,b)=>a-b);
+    expect((dates[1] ?? 0)-(dates[0] ?? 0)).toBeGreaterThanOrEqual(750);
+    expect((dates[2] ?? 0)-(dates[1] ?? 0)).toBeGreaterThanOrEqual(750);
+    const claims=await Promise.all([1,2].map(()=>db.query<{token:string|null}>("SELECT public.claim_nimiq_rpc_cache('test-cache') AS token")));
+    expect(claims.filter(c=>c.rows[0]?.token)).toHaveLength(1);
+    await db.exec('SET ROLE authenticated');
+    await expect(db.query("SELECT public.reserve_nimiq_rpc_slot('test-gate',1)")).rejects.toThrow(/permission denied/);
+    await db.exec('RESET ROLE');
+  });
   it("denies anonymous and collector payment/payout writes and truncate", async () => {
-    for (const role of ["anon", "authenticated"]) for (const table of ["nimiq_payment_quotes", "testnet_payouts", "payment_attempts", "savings_transfers", "nimiq_wallet_links", "nimiq_wallet_challenges", "user_roles", "testnet_hub_requests", "testnet_hub_signed_payouts"]) {
+    for (const role of ["anon", "authenticated"]) for (const table of ["nimiq_payment_quotes", "testnet_payouts", "payment_attempts", "savings_transfers", "nimiq_wallet_links", "nimiq_wallet_challenges", "user_roles", "testnet_hub_requests", "testnet_hub_signed_payouts", "nimiq_rpc_coordination"]) {
       const result = await db.query<{ allowed: boolean }>(`SELECT has_table_privilege('${role}','public.${table}','INSERT') OR has_table_privilege('${role}','public.${table}','UPDATE') OR has_table_privilege('${role}','public.${table}','DELETE') OR has_table_privilege('${role}','public.${table}','TRUNCATE') AS allowed`);
       expect(result.rows[0]?.allowed).toBe(false);
     }
@@ -52,6 +63,17 @@ describe.sequential("real migration authorization and replay", () => {
   it("atomically fulfills once under concurrent submissions and snapshots destination", async () => {
     const results = await Promise.all([1,2].map(() => db.query<{ id: string }>(`SELECT public.fulfill_testnet_payment('${quote}','${collector}','${hash}') AS id`)));
     expect(results[0]?.rows[0]?.id).toBe(results[1]?.rows[0]?.id);
+    const issued = await db.query<{id:string; source:string; seed:number; intention:string; testnet_quote_id:string; payment_id:string|null}>(`SELECT id,source,seed,intention,testnet_quote_id,payment_id FROM public.manifestations WHERE testnet_quote_id='${quote}'`);
+    expect(issued.rows).toHaveLength(1);
+    expect(issued.rows[0]).toMatchObject({id:results[0]?.rows[0]?.id, source:'testnet', seed:1, intention:'become',testnet_quote_id:quote,payment_id:null});
+    expect((await db.query<{credits:number}>(`SELECT credits FROM public.profiles WHERE id='${collector}'`)).rows[0]?.credits).toBe(2);
+    await db.exec(`SET ROLE authenticated; SELECT set_config('request.jwt.claim.sub','${admin}',false)`);
+    expect((await db.query(`SELECT id FROM public.manifestations WHERE testnet_quote_id='${quote}'`)).rows).toHaveLength(0);
+    await db.exec(`SELECT set_config('request.jwt.claim.sub','${collector}',false)`);
+    expect((await db.query(`SELECT id FROM public.manifestations WHERE testnet_quote_id='${quote}'`)).rows).toHaveLength(1);
+    await expect(db.exec(`UPDATE public.manifestations SET source='paid' WHERE testnet_quote_id='${quote}'`)).rejects.toThrow(/permission denied/);
+    await db.exec('RESET ROLE');
+    expect((await db.query<{status:string}>(`SELECT status FROM public.testnet_payouts WHERE payment_quote_id='${quote}'`)).rows[0]?.status).toBe('queued');
     await expect(db.query(`SELECT public.fulfill_testnet_payment('${quote}','${collector}','${"b".repeat(64)}')`)).rejects.toThrow(/replay hash mismatch/);
     const rows = await db.query<{ reserve_destination: string; amount_luna: number }>("SELECT reserve_destination,amount_luna FROM public.testnet_payouts");
     expect(rows.rows).toEqual([{ reserve_destination: "original-reserve", amount_luna: 50000 }]);

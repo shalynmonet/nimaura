@@ -19,6 +19,9 @@ export function PaymentPanel({ dropId, intention, onFulfilled }: { dropId: strin
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState("");
   const [hash, setHash] = useState("");
+  const [retryUntil, setRetryUntil] = useState(0);
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => { const timer = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(timer); }, []);
   useEffect(() => {
     void hostNetwork().then(async (active) => {
       setNetwork(active);
@@ -46,9 +49,9 @@ export function PaymentPanel({ dropId, intention, onFulfilled }: { dropId: strin
     setBusy(true);
     try {
       const result = await checkFn({ data: { id, ...(txHash ? { txHash } : {}) } });
-      setQuote(result); setHash(result.txHash ?? txHash);
+      setQuote(result); setHash(result.txHash ?? txHash); setRetryUntil(Date.now() + (result.retryAfterMs ?? 0));
       if (result.manifestationId) onFulfilled(result.manifestationId);
-      else setStatus(result.status === "fulfilled" ? "Testnet payment verified. Test Reserve payout queued; no real collectible or savings issued." : "Payment pending. Do not pay again; check status shortly.");
+      else setStatus(result.status === "fulfilled" ? "Testnet collectible issued. Reserve allocation queued, not delivered savings." : "Payment pending. Do not pay again; check status shortly.");
     } catch (error) { setStatus(await walletError(error)); }
     finally { setBusy(false); }
   }
@@ -82,7 +85,7 @@ export function PaymentPanel({ dropId, intention, onFulfilled }: { dropId: strin
         <label className="block text-xs text-muted-foreground">Transaction hash
           <input aria-label="Transaction hash" className="mt-1 w-full rounded-sm border border-input bg-card px-3 py-2 font-mono text-xs text-ivory" value={hash} disabled={!!quote.txHash} onChange={(event) => setHash(event.target.value)} />
         </label>
-        <Button variant="outline" className="w-full" disabled={busy || (hash.length > 0 && !/^[a-f0-9]{64}$/i.test(hash))} onClick={() => check()}><RefreshCw />Check payment status</Button>
+        <Button variant="outline" className="w-full" disabled={busy || now < retryUntil || (hash.length > 0 && !/^[a-f0-9]{64}$/i.test(hash))} onClick={() => check()}><RefreshCw />{now < retryUntil ? `Check again in ${Math.ceil((retryUntil - now) / 1000)}s` : "Check payment status"}</Button>
       </>}
     </>}
     {status && <p role="status" className="text-xs text-muted-foreground">{status}</p>}

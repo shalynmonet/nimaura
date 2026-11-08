@@ -65,7 +65,8 @@ function Encounter() {
   const intention = m.intention as Intention;
   // Reproduce from saved parameters (seed + intention), the canonical source.
   const config = buildManifestation(Number(m.seed), intention);
-  const e = m.entities!;
+  const e = m.entities;
+  if (!e) return <AppShell><p className="mt-16 text-muted-foreground">This entity could not be opened.</p></AppShell>;
   const reflection = (e.reflections as Record<string, string>)[intention];
   const meditation = (e.meditation as string[]) ?? [];
 
@@ -93,6 +94,7 @@ function Encounter() {
       </div>
 
       <section className={phase >= 3 ? "animate-rise" : "invisible"}>
+        {m.source === "testnet" && <p className="eyebrow text-center text-warning">TESTNET collectible · not a mainnet purchase</p>}
         <p className="eyebrow text-center">{e.designation}</p>
         <h1 className="mt-2 text-center font-display text-4xl text-ivory">{e.name}</h1>
         <p className="mt-1 text-center text-xs uppercase tracking-[0.25em] text-muted-foreground">
@@ -124,7 +126,7 @@ function Encounter() {
           <p className="eyebrow">Entered your Vault</p>
           <p className="mt-2 text-muted-foreground">
             Unsealed {new Date(m.created_at).toLocaleString()} ·{" "}
-            {m.source === "complimentary" ? "Complimentary credit" : m.source === "simulated" ? <span className="text-warning">Simulated payment (dev)</span> : "Paid"}
+            {m.source === "complimentary" ? "Complimentary credit" : m.source === "testnet" ? <span className="text-warning">TESTNET payment · Reserve allocation is not delivered savings</span> : m.source === "simulated" ? <span className="text-warning">Simulated payment (dev)</span> : "Paid"}
           </p>
         </div>
         <Link to="/vault" className="mt-6 block text-center text-sm text-gold">Return to Vault</Link>

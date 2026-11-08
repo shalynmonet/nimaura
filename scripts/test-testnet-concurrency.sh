@@ -35,6 +35,8 @@ FIRST=$!
 SECOND=$!
 wait "$FIRST"; wait "$SECOND"
 test "$("${PSQL[@]}" -At -c 'SELECT count(*) FROM public.testnet_payouts')" = 1
+test "$("${PSQL[@]}" -At -c "SELECT count(*) FROM public.manifestations WHERE source='testnet'")" = 1
+test "$("${PSQL[@]}" -At -c 'SELECT count(*) FROM public.savings_transfers')" = 0
 CLAIM="SELECT public.claim_testnet_payout((SELECT id FROM public.testnet_payouts LIMIT 1),'00000000-0000-4000-8000-000000000002',100,now()+interval '5 minutes')"
 "${PSQL[@]}" -c "$CLAIM" >"$DIR/claim1" 2>&1 & C1=$!
 "${PSQL[@]}" -c "$CLAIM" >"$DIR/claim2" 2>&1 & C2=$!
@@ -56,4 +58,4 @@ if wait "$A2"; then WINS=$((WINS+1)); fi
 test "$WINS" = 1
 test "$("${PSQL[@]}" -At -c 'SELECT count(*) FROM public.testnet_hub_signed_payouts')" = 1
 test "$("${PSQL[@]}" -At -c "SELECT count(*) FROM public.testnet_payouts WHERE status='uncertain' AND tx_hash=repeat('b',64)")" = 1
-echo 'PASS: independent connections fulfill once, claim once, accept signed Hub bytes once, and never requeue uncertain payouts.'
+echo 'PASS: independent connections issue one test collectible/payout, claim once, accept signed Hub bytes once, and never create delivered savings or requeue uncertain payouts.'

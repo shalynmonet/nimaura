@@ -6,7 +6,7 @@ export type { Network } from "./rules";
 export type Quote = {
   id: string; network: Network; recipient: string; sender: string; amountLuna: number;
   savingsLuna: number; rate: number; expiresAt: string; validityStartHeight: number;
-  status: string; txHash: string | null; manifestationId: string | null;
+  status: string; txHash: string | null; manifestationId: string | null; retryAfterMs?: number;
 };
 let providerPromise: Promise<NimiqProvider> | undefined;
 export async function hostNetwork(): Promise<Network | undefined> {

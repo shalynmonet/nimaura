@@ -96,11 +96,11 @@ function Resonance() {
               role="radio"
               aria-checked={active}
               onClick={() => setIntention(i)}
-              className={`rounded-sm border p-4 text-left transition ${active ? "glow-gold border-gold bg-gold/10" : "bg-card hover:border-gold/60"}`}
+              className={`h-auto min-h-40 min-w-0 flex-col items-start justify-start gap-0 whitespace-normal rounded-sm border p-4 text-left transition ${active ? "glow-gold border-gold bg-gold/10" : "bg-card hover:border-gold/60"}`}
             >
               <span aria-hidden className="text-xl text-gold">{c.glyph}</span>
               <span className="mt-2 block font-display text-xl text-ivory">{c.label}</span>
-              <span className="mt-1 block text-xs text-muted-foreground">{c.line}</span>
+              <span className="mt-1 block w-full break-words text-xs leading-relaxed text-muted-foreground">{c.line}</span>
             </Button>
           );
         })}
