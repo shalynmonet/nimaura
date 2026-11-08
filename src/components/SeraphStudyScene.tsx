@@ -207,9 +207,29 @@ export default function SeraphStudyScene({ identity = "seraph", seed = 408325749
     const observer = new IntersectionObserver(([entry]) => { visible = entry?.isIntersecting ?? false; visibility(); }, { threshold: .08 });
     if (host.current) observer.observe(host.current); document.addEventListener("visibilitychange", visibility);
     // While a ring node is held, the finger turns the ring instead of scrolling the page.
-    const holdNode = (event: TouchEvent) => { if (input.current.grab != null) event.preventDefault(); };
-    const stage = host.current; stage?.addEventListener("touchmove", holdNode, { passive: false });
-    return () => { stage?.removeEventListener("touchmove", holdNode); observer.disconnect(); media.removeEventListener("change", reduced); document.removeEventListener("visibilitychange", visibility); };
+    // iPhone (and Nimiq Pay's web view) cancels pointer drags when it starts scrolling, so touch
+    // uses native touch events: sideways drags and node drags are ours, vertical swipes scroll.
+    const stage = host.current;
+    const touch = { axis: "" as "" | "x" | "y" };
+    const onStart = (event: TouchEvent) => {
+      const t = event.touches[0]; if (!t || event.touches.length > 1) { endTouch(true); return; }
+      gesture.current = { id: -1, x: t.clientX, y: t.clientY, started: performance.now(), moved: false }; touch.axis = ""; input.current.held = true;
+    };
+    const onMove = (event: TouchEvent) => {
+      const g = gesture.current, t = event.touches[0]; if (!g || !t) return;
+      const dx = t.clientX - g.x, dy = t.clientY - g.y;
+      if (Math.abs(dx) + Math.abs(dy) > 8) g.moved = true;
+      if (input.current.grab != null) { event.preventDefault(); input.current.gx = dx; input.current.gy = dy; return; }
+      if (!touch.axis && g.moved) touch.axis = Math.abs(dx) >= Math.abs(dy) ? "x" : "y";
+      if (touch.axis === "y") { endTouch(true); return; }
+      if (touch.axis === "x") { event.preventDefault(); input.current.x = dx / 70; input.current.y = -dy / 70; }
+    };
+    const endTouch = (cancel: boolean) => { if (gesture.current) end(cancel); };
+    const onEnd = () => endTouch(false), onCancel = () => endTouch(true);
+    stage?.addEventListener("touchstart", onStart, { passive: true });
+    stage?.addEventListener("touchmove", onMove, { passive: false });
+    stage?.addEventListener("touchend", onEnd); stage?.addEventListener("touchcancel", onCancel);
+    return () => { stage?.removeEventListener("touchstart", onStart); stage?.removeEventListener("touchmove", onMove); stage?.removeEventListener("touchend", onEnd); stage?.removeEventListener("touchcancel", onCancel); observer.disconnect(); media.removeEventListener("change", reduced); document.removeEventListener("visibilitychange", visibility); };
   }, []);
   const end = (cancel: boolean) => {
     const g = gesture.current;
@@ -217,8 +237,9 @@ export default function SeraphStudyScene({ identity = "seraph", seed = 408325749
     gesture.current = null; input.current.held = false; input.current.x = 0; input.current.y = 0; input.current.grab = null; if (host.current) host.current.style.cursor = "";
   };
   return <div ref={host} className="seraph-study-stage" role="img" aria-label={`Interactive ${identity} sculpture, ${path} path`} data-identity={identity} data-seed={seed} data-path={path} data-renderer-version="3" data-active={active}
-    onPointerDown={e => { if (gesture.current) return; gesture.current = { id: e.pointerId, x: e.clientX, y: e.clientY, started: performance.now(), moved: false }; input.current.held = true; }}
+    onPointerDown={e => { if (e.pointerType === "touch" || gesture.current) return; gesture.current = { id: e.pointerId, x: e.clientX, y: e.clientY, started: performance.now(), moved: false }; input.current.held = true; }}
     onPointerMove={e => {
+      if (e.pointerType === "touch") return;
       const g = gesture.current; if (!g || g.id !== e.pointerId) return;
       const dx = e.clientX - g.x, dy = e.clientY - g.y;
       if (Math.abs(dx) + Math.abs(dy) > 8) g.moved = true;
@@ -231,7 +252,7 @@ export default function SeraphStudyScene({ identity = "seraph", seed = 408325749
       if (e.pointerType === "touch" && Math.abs(dy) > Math.abs(dx) + 12) { end(true); return; }
       if (Math.abs(dx) > 10 && !e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.setPointerCapture(e.pointerId);
       input.current.x = dx / 110; input.current.y = -dy / 110;
-    }} onPointerUp={() => end(false)} onPointerCancel={() => end(true)} onLostPointerCapture={() => end(true)} onPointerLeave={() => { if (!host.current?.hasPointerCapture(gesture.current?.id ?? -1)) end(true); }}>
+    }} onPointerUp={e => { if (e.pointerType !== "touch") end(false); }} onPointerCancel={e => { if (e.pointerType !== "touch") end(true); }} onLostPointerCapture={e => { if (e.pointerType !== "touch") end(true); }} onPointerLeave={e => { if (e.pointerType !== "touch" && !host.current?.hasPointerCapture(gesture.current?.id ?? -1)) end(true); }}>
     {failed ? <p className="p-8 text-center text-muted-foreground">The sculpture needs WebGL. Please open this study in a browser with graphics enabled.</p> : palette && <Canvas shadows dpr={[1, 1.5]} frameloop={active ? "always" : "never"} camera={{ position: [0, 0, 7.8], fov: 40 }} gl={{ antialias: true, alpha: true, powerPreference: "low-power" }} onCreated={({ gl }) => { gl.domElement.addEventListener("webglcontextlost", () => setFailed(true)); }} fallback={<p className="p-8 text-muted-foreground">WebGL is unavailable in this browser.</p>}>
       {identity === "seraph" ? <Sculpture config={config} palette={palette} input={input} host={host} /> : <OtherEntitySculptures config={otherConfig} palette={palette} input={input} host={host} />}
     </Canvas>}
