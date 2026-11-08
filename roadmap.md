@@ -15,7 +15,7 @@
 - [x] Testnet: validated Albatross verifier, isolated atomic payment fulfillment and adversarial tests.
 - [x] Testnet: admin-only manual payout queue, destination snapshots, atomic claims and reference reconciliation.
 - [x] Testnet: verify public UI, database rules and tests.
-- [ ] Testnet: actual device payment/collectible/delivery end-to-end awaits explicit activation and device access; not authorized during repairs.
+- [ ] Testnet: actual device payment/collectible/delivery end-to-end waits for successful published quote verification and device access; manual payouts remain disabled.
 - [x] Assess separate official testnet web Wallet signing; Pay cannot select these wallets. Document minimal Hub path and strict manual-hash reconciliation.
 - [x] Implement browser-only testnet Hub Reserve/treasury signing, durable redirect state, private signed-byte storage and single broadcast.
 - [x] Verify Hub negative signature/intent/state/replay tests and existing regression checks.
@@ -23,4 +23,6 @@
 - [x] Adapt verifier to documented public node (no getNetworkId, error-shaped unknown hash, 429 retries); live macro finality/ancestry verified.
 - [x] Configure NIMIQ_TESTNET_RPC_URL after successful probes; payment/payout switches remain OFF.
 - [ ] Validate actual iOS browser/Pay handoff (requires device access; native handoff remains gated).
-- [ ] Activate payments (explicitly outside this task; switches remain off and no automatic payouts).
+- [x] Owner-authorized release: reversibly enable collector testnet payments and publish the tested fixes to the current domain; preserve mainnet/manual payouts OFF.
+- [x] Verify published SHA-I wallet/Reserve/admin queue, mobile intentions and unchanged Vault/credits; confirm published mainnet/manual payout gates.
+- [ ] Published unsigned quote readiness: repeated attempts return a 10-second verification-pending delay, with no fresh quote created; do not pay until resolved.
