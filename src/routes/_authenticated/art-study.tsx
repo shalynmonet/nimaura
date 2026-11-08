@@ -34,7 +34,7 @@ function ArtStudy() {
     </ClientOnly>
     <section className="mx-auto max-w-lg px-6 pb-16 text-center">
       <p className="text-sm text-gold">Touch and hold to slow its rhythm.</p>
-      <p className="mt-2 text-xs text-muted-foreground">Tap to ripple. Drag gently to shift its gaze.</p>
+      <p className="mt-2 text-xs text-muted-foreground">Tap to ripple. Drag a gold ring node to turn that ring; drag elsewhere to shift its gaze.</p>
       <p className="mt-8 font-display text-2xl italic leading-relaxed text-ivory">Return to what was always woven in.</p>
       <p className="mt-5 text-xs text-muted-foreground">Experimental study · seed 408325749 · not a collectible</p>
       <p className="mt-8 text-xs leading-relaxed text-muted-foreground">Houndstooth geometry adapted from Kevin L. Durette’s “Houndstooth SVG”, CC BY 4.0. <a className="underline underline-offset-4" href="https://commons.wikimedia.org/wiki/File:Houndstooth_SVG.svg" target="_blank" rel="noreferrer">Source & attribution</a></p>

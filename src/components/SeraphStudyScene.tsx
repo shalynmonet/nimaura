@@ -9,7 +9,8 @@ import OtherEntitySculptures from "./OtherEntitySculptures";
 import { buildEntityStudy, type StudyIdentity } from "@/lib/entity-study";
 import type { Intention } from "@/lib/manifest";
 
-type Input = { held: boolean; x: number; y: number; reduced: boolean; tap: boolean };
+// grab: ring whose node handle is being dragged; gx/gy: that drag's offset in pixels.
+type Input = { held: boolean; x: number; y: number; reduced: boolean; tap: boolean; grab?: number | null; gx?: number; gy?: number };
 type Palette = { gold: string; ivory: string; ink: string; white: string; black: string };
 
 function ribbonGeometry(wing: StudyConfig["wings"][number]) {
@@ -61,6 +62,8 @@ function Sculpture({ config, palette, input, host }: { config: StudyConfig; pale
   const root = useRef<THREE.Group>(null), eye = useRef<THREE.Group>(null), lid = useRef<THREE.Group>(null);
   const wings = useRef<(THREE.Group | null)[]>([]), rings = useRef<(THREE.Group | null)[]>([]);
   const particles = useRef<THREE.Points>(null), state = useRef(initialPlayback());
+  // Collector-turned ring orientation persists after release; live drag adds on top.
+  const ringTurn = useRef([0, 1, 2].map(() => ({ x: 0, y: 0 }))), lastGrab = useRef<{ i: number; x: number; y: number } | null>(null);
   const { gl } = useThree();
   const assets = useMemo(() => {
     const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 4 4"><rect width="4" height="4" fill="${palette.white}"/><g fill="${palette.black}"><polygon points="${HOUNDSTOOTH_TOOTH}"/><polygon points="4,0 4,1 3,0"/><polygon points="0,4 1,4 0,3"/></g></svg>`;
@@ -96,9 +99,13 @@ function Sculpture({ config, palette, input, host }: { config: StudyConfig; pale
       wing.rotation.y = Math.sin(t * .72 + w.phase) * .13 * motion;
       wing.position.z = Math.sin(t + w.phase) * .045 * motion + s.ripple * Math.sin(i + s.ripple * 9) * .09;
     });
+    const grab = input.current.grab ?? null;
+    if (grab !== null) lastGrab.current = { i: grab, x: (input.current.gx ?? 0) / 90, y: (input.current.gy ?? 0) / 90 };
+    else if (lastGrab.current) { const g = lastGrab.current, turn = ringTurn.current[g.i]; if (turn) { turn.x += g.y; turn.y += g.x; } lastGrab.current = null; }
     rings.current.forEach((ring, i) => {
       if (!ring) return;
-      ring.rotation.set(.6 + i * .57 + Math.sin(t * .28 + i) * .16 * motion, i * .83 + t * .05 * motion, i * .7 + t * .025 * motion);
+      const turn = ringTurn.current[i] ?? { x: 0, y: 0 }, live = lastGrab.current?.i === i ? lastGrab.current : null;
+      ring.rotation.set(.6 + i * .57 + turn.x + (live?.y ?? 0) + Math.sin(t * .28 + i) * .16 * motion, i * .83 + turn.y + (live?.x ?? 0) + t * .05 * motion, i * .7 + t * .025 * motion);
       ring.scale.setScalar(1 + s.ripple * .045 * Math.sin(s.ripple * 12 - i));
     });
     if (eye.current) { eye.current.position.x = s.x * .065 + Math.sin(t * .57) * .025 * motion; eye.current.position.y = s.y * .035 + Math.sin(t * .32) * .018 * motion; }
@@ -137,7 +144,14 @@ function Sculpture({ config, palette, input, host }: { config: StudyConfig; pale
       </group>; })}
       {[1.95, 2.12, 2.32].map((radius, i) => <group key={i} ref={node => { rings.current[i] = node; }}>
         <mesh castShadow><torusGeometry args={[radius, i === 0 ? .025 : .012, 8, 128]} />{goldMaterial}</mesh>
-        {[0, Math.PI].map(a => <mesh key={a} position={[Math.cos(a) * radius, Math.sin(a) * radius, 0]}><sphereGeometry args={[.06, 16, 12]} />{goldMaterial}</mesh>)}
+        {[0, Math.PI].map(a => <group key={a} position={[Math.cos(a) * radius, Math.sin(a) * radius, 0]}>
+          <mesh><sphereGeometry args={[.075, 16, 12]} />{goldMaterial}</mesh>
+          {/* Larger invisible handle so a fingertip can catch the node. */}
+          <mesh onPointerDown={e => { e.stopPropagation(); input.current.grab = i; input.current.gx = 0; input.current.gy = 0; if (host.current) host.current.style.cursor = "grabbing"; }}
+            onPointerOver={() => { if (host.current && input.current.grab == null) host.current.style.cursor = "grab"; }} onPointerOut={() => { if (host.current && input.current.grab == null) host.current.style.cursor = ""; }}>
+            <sphereGeometry args={[.28, 8, 6]} /><meshBasicMaterial transparent opacity={0} depthWrite={false} />
+          </mesh>
+        </group>)}
       </group>)}
       <group position={[0, 0, .64]}>
         <mesh scale={[.78, .48, .36]} castShadow receiveShadow><sphereGeometry args={[1, 48, 32]} /><meshStandardMaterial color={palette.gold} metalness={.7} roughness={.36} /></mesh>
@@ -192,12 +206,15 @@ export default function SeraphStudyScene({ identity = "seraph", seed = 408325749
     const visibility = () => { setActive(visible && !document.hidden); if (document.hidden) input.current.held = false; };
     const observer = new IntersectionObserver(([entry]) => { visible = entry?.isIntersecting ?? false; visibility(); }, { threshold: .08 });
     if (host.current) observer.observe(host.current); document.addEventListener("visibilitychange", visibility);
-    return () => { observer.disconnect(); media.removeEventListener("change", reduced); document.removeEventListener("visibilitychange", visibility); };
+    // While a ring node is held, the finger turns the ring instead of scrolling the page.
+    const holdNode = (event: TouchEvent) => { if (input.current.grab != null) event.preventDefault(); };
+    const stage = host.current; stage?.addEventListener("touchmove", holdNode, { passive: false });
+    return () => { stage?.removeEventListener("touchmove", holdNode); observer.disconnect(); media.removeEventListener("change", reduced); document.removeEventListener("visibilitychange", visibility); };
   }, []);
   const end = (cancel: boolean) => {
     const g = gesture.current;
     if (!cancel && g && !g.moved && performance.now() - g.started < 450) input.current.tap = true;
-    gesture.current = null; input.current.held = false; input.current.x = 0; input.current.y = 0;
+    gesture.current = null; input.current.held = false; input.current.x = 0; input.current.y = 0; input.current.grab = null; if (host.current) host.current.style.cursor = "";
   };
   return <div ref={host} className="seraph-study-stage" role="img" aria-label={`Interactive ${identity} sculpture, ${path} path`} data-identity={identity} data-seed={seed} data-path={path} data-renderer-version="3" data-active={active}
     onPointerDown={e => { if (gesture.current) return; gesture.current = { id: e.pointerId, x: e.clientX, y: e.clientY, started: performance.now(), moved: false }; input.current.held = true; }}
@@ -206,6 +223,11 @@ export default function SeraphStudyScene({ identity = "seraph", seed = 408325749
       const dx = e.clientX - g.x, dy = e.clientY - g.y;
       if (Math.abs(dx) + Math.abs(dy) > 8) g.moved = true;
       // Vertical touch scrolling remains native; horizontal drags get bounded parallax.
+      if (input.current.grab != null) {
+        // Turning a ring by its node: keep the gesture even when it moves vertically.
+        if (!e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.setPointerCapture(e.pointerId);
+        input.current.gx = dx; input.current.gy = dy; return;
+      }
       if (e.pointerType === "touch" && Math.abs(dy) > Math.abs(dx) + 12) { end(true); return; }
       if (Math.abs(dx) > 10 && !e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.setPointerCapture(e.pointerId);
       input.current.x = dx / 110; input.current.y = -dy / 110;

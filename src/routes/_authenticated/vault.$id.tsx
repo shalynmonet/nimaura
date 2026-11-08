@@ -95,7 +95,7 @@ function Encounter() {
           {savedSculptureVersion(m.config) ? (
             <Suspense fallback={<WovenSeraph config={config} className="w-full" />}>
               <LivingSculpture seed={Number(m.seed)} path={intention} />
-              <p className="mt-2 text-center text-xs text-muted-foreground">Hold to slow · tap to ripple · drag to shift</p>
+              <p className="mt-2 text-center text-xs text-muted-foreground">Hold to slow · tap to ripple · drag a gold ring node to turn its ring · drag elsewhere to shift the view</p>
             </Suspense>
           ) : <WovenSeraph config={config} className="w-full" />}
         </div>
