@@ -40,6 +40,8 @@
 :root {
   --radius: 0.25rem;
   --void: oklch(0.08 0.005 70);
+  --weave-black: #000;
+  --weave-white: #fff;
   --background: oklch(0.11 0.006 70);
   --foreground: oklch(0.93 0.025 85);
   --ivory: oklch(0.95 0.03 88);

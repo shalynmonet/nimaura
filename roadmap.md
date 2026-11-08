@@ -1,4 +1,6 @@
 # NIMAURA roadmap
+- [x] Artwork only: saved config.v selects frozen legacy or new six-wing intention-specific geometry and authentic vector houndstooth; no payment/database changes.
+- [x] Eight labeled examples inspected at thumbnail/encounter sizes; seven replay tests, exact original SVG comparison and build OK; signed-in mobile Vault/encounter retain all four existing v1 artworks; not published.
 - [x] Diagnose SHA-I payment: official Pay uses HTLC EarlyResolve and ignores requested height; reproduced sender/117-block-height mismatch and overlapping old-worker proof-stripped cache.
 - [x] Published minimal contract/signature/height and cache-version fixes; 139 tests and independent races pass, build OK; real read-only finality completed with 43 paced calls/zero 429s.
 - [x] Published normal verification fulfilled existing hash 58dcd3fa…a43dc6 at 02:59:06 UTC; replay returns same collectible: 3 Vault items total (1 TESTNET), 1 queued 190657770-Luna payout, 0 credits/0 delivered savings; original receive/408325749 seed preserved.

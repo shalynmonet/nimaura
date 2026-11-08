@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { AppShell } from "@/components/AppShell";
 import { WovenSeraph } from "@/components/Entity";
-import { buildManifestation, INTENTION_COPY, type Intention } from "@/lib/manifest";
+import { buildManifestation, savedRendererVersion, INTENTION_COPY, type Intention } from "@/lib/manifest";
 import { startDrone, stopDrone } from "@/lib/sound";
 
 export const Route = createFileRoute("/_authenticated/vault/$id")({
@@ -64,7 +64,7 @@ function Encounter() {
   const m = q.data;
   const intention = m.intention as Intention;
   // Reproduce from saved parameters (seed + intention), the canonical source.
-  const config = buildManifestation(Number(m.seed), intention);
+  const config = buildManifestation(Number(m.seed), intention, savedRendererVersion(m.config));
   const e = m.entities;
   if (!e) return <AppShell><p className="mt-16 text-muted-foreground">This entity could not be opened.</p></AppShell>;
   const reflection = (e.reflections as Record<string, string>)[intention];

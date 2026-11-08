@@ -1,8 +1,14 @@
 import { useId } from "react";
-import type { ManifestConfig } from "@/lib/manifest";
+import type { ManifestConfig, LegacyManifestConfig } from "@/lib/manifest";
+import { SeraphV2 } from "./SeraphV2";
 
 /** The Woven Seraph — six houndstooth wings, watching eye, celestial rings. Rendered purely from config. */
 export function WovenSeraph({ config, className }: { config: ManifestConfig; className?: string }) {
+  const appearance = className === undefined ? {} : { className };
+  return config.v === 2 ? <SeraphV2 config={config} {...appearance} /> : <LegacyWovenSeraph config={config} {...appearance} />;
+}
+
+export function LegacyWovenSeraph({ config, className }: { config: LegacyManifestConfig; className?: string }) {
   const uid = useId().replace(/:/g, "");
   const gold = `oklch(0.76 0.11 ${80 + config.hueShift})`;
   const goldDim = `oklch(0.5 0.07 ${76 + config.hueShift})`;

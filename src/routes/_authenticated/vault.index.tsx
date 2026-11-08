@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { AppShell } from "@/components/AppShell";
 import { WovenSeraph } from "@/components/Entity";
-import { buildManifestation, INTENTION_COPY, type Intention } from "@/lib/manifest";
+import { buildManifestation, savedRendererVersion, INTENTION_COPY, type Intention } from "@/lib/manifest";
 
 export const Route = createFileRoute("/_authenticated/vault/")({
   head: () => ({
@@ -52,7 +52,7 @@ function Vault() {
           {q.data.map((m) => (
             <li key={m.id}>
               <Link to="/vault/$id" params={{ id: m.id }} search={{ reveal: false }} className="block rounded-sm border bg-card p-2 transition hover:border-gold">
-                <WovenSeraph config={buildManifestation(Number(m.seed), m.intention as Intention)} className="aspect-[4/5] w-full" />
+                <WovenSeraph config={buildManifestation(Number(m.seed), m.intention as Intention, savedRendererVersion(m.config))} className="aspect-[4/5] w-full" />
                 <p className="mt-2 font-display text-base text-ivory">{m.entities?.name}</p>
                 <p className="text-[0.65rem] uppercase tracking-[0.2em] text-muted-foreground">
                   {INTENTION_COPY[m.intention as Intention].label} · № {m.daily_drops?.number}
