@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { verifyTransfer, findPayoutHashes, referenceHex, transactionSchema, RpcPending, rpc, type RpcCoordination } from "./rpc.server";
+import { verifyTransfer, findPayoutHashes, referenceHex, transactionSchema, RpcPending, rpc, networkHead, type RpcCoordination } from "./rpc.server";
 import { z } from "zod";
 const sender = "NQ0700000000000000000000000000000000";
 const hash = "a".repeat(64);
@@ -117,5 +117,35 @@ describe('paced bounded and resumable RPC', () => {
     vi.stubGlobal('fetch',vi.fn(async()=>new Response('',{status:503})));
     await expect(rpc({url:service.url},'sendRawTransaction',['opaque'],z.string())).rejects.toBeInstanceOf(RpcPending);
     expect(fetch).toHaveBeenCalledTimes(1);
+  });
+  it('recovers the hosted getNetworkId failure using workerd-compatible manual redirects', async () => {
+    const {coordination}=coordinator(); const upstream=vi.mocked(fetch).getMockImplementation();
+    if (!upstream) throw new Error('Missing upstream fixture');
+    netIdMode='unsupported';
+    vi.stubGlobal('fetch',vi.fn(async (url,options) => {
+      // Exact workerd failure, previously hidden by rpc() as a 10s delay.
+      if (options?.redirect === 'error') throw new TypeError('Invalid redirect value, must be one of "follow" or "manual"');
+      expect(options?.redirect).toBe('manual');
+      return upstream(url,options);
+    }));
+    expect((await networkHead({url:service.url,coordination},'testnet',true)).number).toBe(125);
+    expect((await networkHead({url:service.url,coordination},'testnet',true)).network).toBe(5);
+    const calls=vi.mocked(fetch).mock.calls.map(([,o])=>JSON.parse(String(o?.body)).method);
+    expect(calls.filter(m=>m==='getNetworkId')).toHaveLength(1);
+    expect(calls.filter(m=>m==='isConsensusEstablished')).toHaveLength(2);
+    expect(calls.filter(m=>m==='getBlockNumber')).toHaveLength(2);
+    expect(calls.filter(m=>m==='getBlockByNumber')).toHaveLength(2);
+  });
+  it('rejects redirects without following or forwarding credentials', async () => {
+    vi.stubGlobal('fetch',vi.fn(async()=>new Response('',{status:302,headers:{Location:'https://other.invalid/'}})));
+    await expect(rpc({url:service.url,authorization:'test-only'},'getBlockNumber',[],z.number())).rejects.toThrow('invalid');
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(fetch).mock.calls[0]?.[1]?.redirect).toBe('manual');
+  });
+  it('does not accept cached consensus or head when preparing a fresh quote', async () => {
+    const {coordination}=coordinator();
+    await networkHead({url:service.url,coordination},'testnet');
+    consensus=false;
+    await expect(networkHead({url:service.url,coordination},'testnet',true)).rejects.toThrow('consensus');
   });
 });

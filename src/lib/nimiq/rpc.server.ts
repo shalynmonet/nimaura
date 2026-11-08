@@ -61,10 +61,13 @@ export async function rpc<T>(service: TrustedRpc, method: string, params: unknow
   service.requestCount = (service.requestCount ?? 0) + 1;
   let response: Response;
   try {
-    response = await fetch(service.url, { method: 'POST', redirect: 'error', headers: {
+    // workerd rejects redirect:'error' before sending any request. Manual mode
+    // is portable and keeps credentials on the configured host; reject 3xx below.
+    response = await fetch(service.url, { method: 'POST', redirect: 'manual', headers: {
       'Content-Type': 'application/json', ...(service.authorization ? { Authorization: service.authorization } : {}),
     }, body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }), signal: AbortSignal.timeout(8000) });
   } catch { throw new RpcPending(); }
+  if (response.status >= 300 && response.status < 400) throw new Error(UNAVAILABLE);
   if (response.status === 429 || response.status >= 500) {
     const retry = response.headers.get('Retry-After');
     const seconds = retry && /^\d+(?:\.\d+)?$/.test(retry) ? Number(retry) * 1000 : retry ? Date.parse(retry) - Date.now() : 0;
@@ -99,7 +102,7 @@ export async function rpc<T>(service: TrustedRpc, method: string, params: unknow
 export function assertRpcNetwork(network: Network, reported: number | string) {
   if (network !== "testnet" || (reported !== 5 && reported !== "TestAlbatross")) throw new Error("Only the trusted testnet network is permitted.");
 }
-export async function networkHead(service: TrustedRpc, network: Network) {
+export async function networkHead(service: TrustedRpc, network: Network, fresh = false) {
   try {
     assertRpcNetwork(network, await rpc(service, "getNetworkId", [], z.union([integer, z.string()])));
   } catch (error) {
@@ -107,9 +110,10 @@ export async function networkHead(service: TrustedRpc, network: Network) {
     // proves the network explicitly. Any other failure stays fatal.
     if (!(error instanceof RpcMethodUnsupported)) throw error;
   }
-  if (!await rpc(service, "isConsensusEstablished", [], z.boolean())) throw new Error("Trusted testnet node has no consensus.");
-  const height = await rpc(service, "getBlockNumber", [], integer);
-  const block = await rpc(service, "getBlockByNumber", [height, false], blockSchema);
+  const headService = fresh ? { ...service, fresh: true } : service;
+  if (!await rpc(headService, "isConsensusEstablished", [], z.boolean())) throw new Error("Trusted testnet node has no consensus.");
+  const height = await rpc(headService, "getBlockNumber", [], integer);
+  const block = await rpc(headService, "getBlockByNumber", [height, false], blockSchema);
   assertRpcNetwork(network, block.network);
   if (block.number !== height) throw new Error("Head block mismatch.");
   return block;

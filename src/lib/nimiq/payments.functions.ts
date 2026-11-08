@@ -42,7 +42,7 @@ export const createPaymentQuote = createServerFn({ method: "POST" }).middleware(
   const now = Date.now();
   if (!drop || now < Date.parse(drop.starts_at) || now >= Date.parse(drop.ends_at)) throw new Error("This drop is closed.");
   const service: TrustedRpc = { url, authorization: process.env["NIMIQ_TESTNET_RPC_AUTHORIZATION"], coordination: rpcCoordination(supabaseAdmin) };
-  const head = await networkHead(service, "testnet");
+  const head = await networkHead(service, "testnet", true);
   let rate: number;
   try {
     const res = await fetch("https://api.coingecko.com/api/v3/simple/price?ids=nimiq-2&vs_currencies=usd", { signal: AbortSignal.timeout(10_000) });

@@ -25,4 +25,5 @@
 - [ ] Validate actual iOS browser/Pay handoff (requires device access; native handoff remains gated).
 - [x] Owner-authorized release: reversibly enable collector testnet payments and publish the tested fixes to the current domain; preserve mainnet/manual payouts OFF.
 - [x] Verify published SHA-I wallet/Reserve/admin queue, mobile intentions and unchanged Vault/credits; confirm published mainnet/manual payout gates.
-- [ ] Published unsigned quote readiness: repeated attempts return a 10-second verification-pending delay, with no fresh quote created; do not pay until resolved.
+- [ ] Corrective release: diagnose the published quote retry loop from hosted logs/coordination, add a reproducing regression, apply the smallest fix and publish; preserve mainnet/manual payouts OFF.
+- [ ] Published unsigned quote readiness: verify fresh SHA-I quote fields and unchanged counts after the correction; do not pay until production succeeds.
