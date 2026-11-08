@@ -11,25 +11,64 @@ export const transactionSchema = z.object({ hash, from: address, to: address, va
 });
 export const blockSchema = z.object({ number: integer, timestamp: integer, parentHash: hash, network: z.union([integer, z.string()]), type: z.enum(["macro", "micro"]), hash });
 export type TrustedRpc = { url: string; authorization?: string | undefined };
+// The configured node does not expose a method at all (e.g. getNetworkId on
+// nimiqwatch). Network is then proven strictly by every canonical block.
+export class RpcMethodUnsupported extends Error {}
+// The precise tested unknown-hash response: HTTP 200, code -32603,
+// data "Transaction not found: <hash>". Means pending, never "resend".
+export class RpcTransactionNotFound extends Error {}
+const UNAVAILABLE = "Nimiq verification unavailable or invalid. Keep this transfer unresolved; do not send again.";
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+function errorDetails(error: unknown) {
+  if (typeof error === "string") return { message: error };
+  if (typeof error === "object" && error !== null) {
+    const e = error as { code?: unknown; message?: unknown; data?: unknown };
+    return { code: e.code, message: e.message, data: e.data };
+  }
+  return {};
+}
 // Only server handlers construct this object from configuration. No function accepts a browser URL.
 export async function rpc<T>(service: TrustedRpc, method: string, params: unknown[], schema: z.ZodType<T>): Promise<T> {
   const parsed = new URL(service.url);
   if (parsed.protocol !== "https:" || parsed.username || parsed.password) throw new Error("Trusted HTTPS Nimiq service required.");
-  try {
-    const response = await fetch(service.url, { method: "POST", redirect: "error", headers: {
-      "Content-Type": "application/json", ...(service.authorization ? { Authorization: service.authorization } : {}),
-    }, body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }), signal: AbortSignal.timeout(8_000) });
-    if (!response.ok) throw new Error("Unavailable");
-    const envelope = z.object({ jsonrpc: z.literal("2.0"), id: z.literal(1), error: z.unknown().optional(), result: z.object({ data: z.unknown() }).optional() }).parse(await response.json());
-    if (envelope.error !== undefined || !envelope.result) throw new Error("Unavailable");
-    return schema.parse(envelope.result.data);
-  } catch { throw new Error("Nimiq verification unavailable or invalid. Keep this transfer unresolved; do not send again."); }
+  // Public nodes rate-limit aggressively (HTTP 429). Retry briefly, then fail closed.
+  for (let attempt = 0; attempt < 4; attempt++) {
+    if (attempt) await sleep(400 * attempt);
+    let response: Response;
+    try {
+      response = await fetch(service.url, { method: "POST", redirect: "error", headers: {
+        "Content-Type": "application/json", ...(service.authorization ? { Authorization: service.authorization } : {}),
+      }, body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }), signal: AbortSignal.timeout(8_000) });
+    } catch { continue; }
+    if (response.status === 429 || response.status >= 500) continue;
+    let body: unknown;
+    try { body = await response.json(); } catch { throw new Error(UNAVAILABLE); }
+    const envelope = z.object({ jsonrpc: z.literal("2.0"), id: z.literal(1), error: z.unknown().optional(), result: z.object({ data: z.unknown() }).optional() }).safeParse(body);
+    if (!envelope.success) throw new Error(UNAVAILABLE);
+    if (envelope.data.error !== undefined) {
+      const { code, message, data } = errorDetails(envelope.data.error);
+      if (message === "Method not allowed") throw new RpcMethodUnsupported(method);
+      if (code === -32603 && typeof data === "string" && data.startsWith("Transaction not found: ")) throw new RpcTransactionNotFound();
+      throw new Error(UNAVAILABLE);
+    }
+    if (!response.ok || !envelope.data.result) throw new Error(UNAVAILABLE);
+    try {
+      return schema.parse(envelope.data.result.data);
+    } catch { throw new Error(UNAVAILABLE); }
+  }
+  throw new Error(UNAVAILABLE);
 }
 export function assertRpcNetwork(network: Network, reported: number | string) {
   if (network !== "testnet" || (reported !== 5 && reported !== "TestAlbatross")) throw new Error("Only the trusted testnet network is permitted.");
 }
 export async function networkHead(service: TrustedRpc, network: Network) {
-  assertRpcNetwork(network, await rpc(service, "getNetworkId", [], z.union([integer, z.string()])));
+  try {
+    assertRpcNetwork(network, await rpc(service, "getNetworkId", [], z.union([integer, z.string()])));
+  } catch (error) {
+    // Tolerate only a genuinely unsupported method; every block below still
+    // proves the network explicitly. Any other failure stays fatal.
+    if (!(error instanceof RpcMethodUnsupported)) throw error;
+  }
   if (!await rpc(service, "isConsensusEstablished", [], z.boolean())) throw new Error("Trusted testnet node has no consensus.");
   const height = await rpc(service, "getBlockNumber", [], integer);
   const block = await rpc(service, "getBlockByNumber", [height, false], blockSchema);
@@ -38,9 +77,10 @@ export async function networkHead(service: TrustedRpc, network: Network) {
   return block;
 }
 export async function finalizedHeight(service: TrustedRpc, network: Network, head: number) {
-  // Fetch a bounded canonical window in parallel. No assumed epoch length or head-as-finality.
-  for (let top = head; top >= Math.max(0, head - 128); top -= 16) {
-    const heights = Array.from({ length: Math.min(16, top - Math.max(0, head - 128) + 1) }, (_, i) => top - i);
+  // Fetch a bounded canonical window in small parallel batches (rate limits).
+  // No assumed epoch length or head-as-finality.
+  for (let top = head; top >= Math.max(0, head - 128); top -= 4) {
+    const heights = Array.from({ length: Math.min(4, top - Math.max(0, head - 128) + 1) }, (_, i) => top - i);
     const blocks = await Promise.all(heights.map(async (height) => {
       const block = await rpc(service, "getBlockByNumber", [height, false], blockSchema);
       assertRpcNetwork(network, block.network);
@@ -59,7 +99,13 @@ export function referenceHex(reference: string) {
 }
 export async function verifyTransfer(service: TrustedRpc, expected: ExpectedPayment, reference?: string) {
   const head = await networkHead(service, expected.network);
-  const tx = await rpc(service, "getTransactionByHash", [expected.txHash], transactionSchema.nullable());
+  let tx: z.infer<typeof transactionSchema> | null;
+  try {
+    tx = await rpc(service, "getTransactionByHash", [expected.txHash], transactionSchema.nullable());
+  } catch (error) {
+    if (error instanceof RpcTransactionNotFound) return false; // pending; never resend
+    throw error;
+  }
   if (!tx) return false;
   const macro = await finalizedHeight(service, expected.network, head.number);
   if (!validatePaymentEvidence(tx, expected, macro.number)) return false;

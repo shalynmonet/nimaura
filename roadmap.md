@@ -14,5 +14,8 @@
 - [x] Assess separate official testnet web Wallet signing; Pay cannot select these wallets. Document minimal Hub path and strict manual-hash reconciliation.
 - [x] Implement browser-only testnet Hub Reserve/treasury signing, durable redirect state, private signed-byte storage and single broadcast.
 - [x] Verify Hub negative signature/intent/state/replay tests and existing regression checks.
+- [x] Confirm collector Reserve link verified on testnet; no admin roles granted.
+- [x] Adapt verifier to documented public node (no getNetworkId, error-shaped unknown hash, 429 retries); live macro finality/ancestry verified.
+- [x] Configure NIMIQ_TESTNET_RPC_URL after successful probes; payment/payout switches remain OFF.
 - [ ] Validate actual iOS browser/Pay handoff (requires device access; native handoff remains gated).
 - [ ] Activate payments (explicitly outside this task; switches remain off and no automatic payouts).
