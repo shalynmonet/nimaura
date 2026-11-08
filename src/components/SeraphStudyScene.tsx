@@ -85,7 +85,7 @@ function Sculpture({ config, palette, input, host }: { config: StudyConfig; pale
   useEffect(() => () => { assets.texture.dispose(); assets.iris.dispose(); assets.geometries.forEach(g => g.dispose()); assets.seams.flat().forEach(g => g.dispose()); }, [assets]);
   useFrame((_, delta) => {
     const s = state.current;
-    if (input.current.tap) { s.ripple = 1; input.current.tap = false; }
+    if (input.current.tap) { s.boost = Math.min(5, s.boost + 1); input.current.tap = false; }
     advanceStudy(s, delta, input.current);
     const t = s.time * config.rhythm, motion = input.current.reduced ? .15 : 1;
     if (root.current) {

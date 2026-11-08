@@ -46,7 +46,7 @@ export default function OtherEntitySculptures({ config, palette, input, host }: 
   }, [config, palette]);
   useEffect(() => () => { assets.texture.dispose(); assets.rings.forEach(g => g.dispose()); assets.folds.forEach(f => { f.g.dispose(); f.seams.forEach(g => g.dispose()); }); }, [assets]);
   useFrame((_, delta) => {
-    const s = state.current; if (input.current.tap) { s.ripple = 1; input.current.tap = false; } advanceStudy(s, delta, input.current);
+    const s = state.current; if (input.current.tap) { s.boost = Math.min(5, s.boost + 1); input.current.tap = false; } advanceStudy(s, delta, input.current);
     const t = s.time * config.rhythm, motion = input.current.reduced ? .12 : 1;
     if (root.current) { root.current.rotation.set(-s.y * .12, s.x * .3 + Math.sin(t * .2) * .09 * motion, 0); root.current.position.y = Math.sin(t) * .045 * motion; }
     parts.current.forEach((part, i) => {

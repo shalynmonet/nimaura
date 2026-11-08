@@ -34,3 +34,13 @@ describe("isolated sculptural study", () => {
     expect(s.speed).toBeCloseTo(.12, 3);
   });
 });
+describe("tap tempo", () => {
+  it("caps boost at 5x and a hold resets it", async () => {
+    const { initialPlayback, advanceStudy } = await import("./seraph-study");
+    const s = initialPlayback(); s.boost = 5;
+    for (let i = 0; i < 200; i++) advanceStudy(s, .05, { held: false, x: 0, y: 0, reduced: false });
+    expect(s.speed).toBeCloseTo(5, 2);
+    for (let i = 0; i < 200; i++) advanceStudy(s, .05, { held: true, x: 0, y: 0, reduced: false });
+    expect(s.boost).toBe(1); expect(s.speed).toBeCloseTo(.16, 2);
+  });
+});

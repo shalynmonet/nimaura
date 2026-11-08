@@ -22,12 +22,16 @@ export function buildSeraphStudy(seed: number, intention: Intention) {
 }
 
 export type StudyConfig = ReturnType<typeof buildSeraphStudy>;
-export type StudyPlayback = { time: number; speed: number; x: number; y: number; ripple: number };
-export const initialPlayback = (): StudyPlayback => ({ time: 0, speed: 1, x: 0, y: 0, ripple: 0 });
+export type StudyPlayback = { time: number; speed: number; x: number; y: number; ripple: number; boost: number; heldFor: number };
+export const initialPlayback = (): StudyPlayback => ({ time: 0, speed: 1, x: 0, y: 0, ripple: 0, boost: 1, heldFor: 0 });
 export function advanceStudy(state: StudyPlayback, delta: number, input: { held: boolean; x: number; y: number; reduced: boolean }) {
   const dt = Math.min(Math.max(delta, 0), .05);
   const blend = 1 - Math.exp(-dt * 4);
-  const targetSpeed = input.reduced ? .12 : input.held ? .16 : 1;
+  // Taps raise the tempo up to 5x; a deliberate hold (not a tap's brief press) slows it and resets the boost.
+  state.heldFor = input.held ? state.heldFor + dt : 0;
+  const holding = state.heldFor > .25;
+  if (holding) state.boost = 1;
+  const targetSpeed = input.reduced ? .12 : holding ? .16 : state.boost;
   state.speed += (targetSpeed - state.speed) * blend;
   state.time += dt * state.speed;
   state.x += (Math.max(-1, Math.min(1, input.x)) - state.x) * blend;
