@@ -15,10 +15,14 @@ describe('hosted quote pricing', () => {
   it.each([403, 429, 500])('never substitutes a fabricated rate on HTTP %i', async status => {
     vi.stubGlobal('fetch', vi.fn(async () => new Response('', { status })));
     await expect(liveNimRate()).rejects.toThrow('No payment was requested');
-    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(fetch).toHaveBeenCalledTimes(2);
+  });
+  it('uses the second live source when the first is rate-limited', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => String(url).includes('coingecko') ? new Response('', { status: 429 }) : Response.json({ quotes: { USD: { price: 0.0002614 } } })));
+    expect(await liveNimRate()).toBe(0.0002614);
   });
   it.each([0, -1, '0.00026225'])('rejects invalid rate %s', async usd => {
-    vi.stubGlobal('fetch', vi.fn(async () => Response.json({ 'nimiq-2': { usd } })));
+    vi.stubGlobal('fetch', vi.fn(async () => Response.json({ 'nimiq-2': { usd }, quotes: { USD: { price: usd } } })));
     await expect(liveNimRate()).rejects.toThrow('No payment was requested');
   });
 });
