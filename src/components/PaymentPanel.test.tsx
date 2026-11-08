@@ -1,9 +1,9 @@
 import { act, fireEvent, render, screen, cleanup } from '@testing-library/react';
 import { beforeEach, afterEach, describe, it, expect, vi } from 'vitest';
-const m=vi.hoisted(()=>({quote:vi.fn(),state:vi.fn(),prepare:vi.fn(),check:vi.fn(),record:vi.fn(),send:vi.fn()}));
+const m=vi.hoisted(()=>({release:vi.fn(),quote:vi.fn(),state:vi.fn(),prepare:vi.fn(),check:vi.fn(),record:vi.fn(),send:vi.fn()}));
 vi.mock('@tanstack/react-start',()=>({useServerFn:(f:unknown)=>f}));
 vi.mock('@tanstack/react-router',()=>({Link:({children}: {children:React.ReactNode})=><a>{children}</a>}));
-vi.mock('@/lib/nimiq/payments.functions',()=>({createPaymentQuote:m.quote,getPaymentState:m.state,preparePayment:m.prepare,checkPayment:m.check,recordSubmission:m.record}));
+vi.mock('@/lib/nimiq/payments.functions',()=>({createPaymentQuote:m.quote,getPaymentState:m.state,preparePayment:m.prepare,checkPayment:m.check,recordSubmission:m.record,releaseUnmatchedPurchase:m.release}));
 vi.mock('@/lib/nimiq',()=>({hostNetwork:async()=> 'testnet',initiatePayment:m.send,walletError:async(e:unknown)=>e instanceof Error?e.message:'Wallet response'}));
 vi.mock('@/integrations/supabase/client',()=>({supabase:{auth:{getUser:async()=>({data:{user:{id:'owner'}}})}}}));
 import { PaymentPanel } from './PaymentPanel';
@@ -38,5 +38,13 @@ describe('existing purchase recovery',()=>{
   const r=render(<PaymentPanel dropId="d" intention="become" onFulfilled={()=>{}}/>);await settle();fireEvent.click(screen.getByText('Pay with Nimiq Pay'));await settle();
   expect(localStorage.getItem('nimaura:submission:owner:purchase')).toBe(hash);r.unmount();m.state.mockResolvedValue({...q,status:'pending'});
   render(<PaymentPanel dropId="d" intention="become" onFulfilled={()=>{}}/>);await settle();expect(screen.getByLabelText('Transaction hash')).toHaveValue(hash);expect(m.send).toHaveBeenCalledTimes(1);
+ });
+ it('stuck unresolved purchase offers release only when server proves it, never a new send',async()=>{
+  m.state.mockResolvedValue({...q,status:'pending',submissionOutcome:'unknown'});m.check.mockResolvedValue({...q,status:'pending',submissionOutcome:'unknown',canRelease:false,headHeight:100,releaseAfterHeight:700,retryAfterMs:60000});
+  render(<PaymentPanel dropId="d" intention="become" onFulfilled={()=>{}}/>);await settle();await act(async()=>{await vi.advanceTimersByTimeAsync(5000);});
+  expect(screen.queryByText('Release this purchase')).toBeNull();expect(screen.getByText(/after testnet block 700/)).toBeTruthy();
+  m.check.mockResolvedValue({...q,status:'pending',submissionOutcome:'unknown',canRelease:true,retryAfterMs:300000});m.release.mockResolvedValue(true);
+  await act(async()=>{await vi.advanceTimersByTimeAsync(61000);});fireEvent.click(screen.getByText('Release this purchase'));await settle();
+  expect(m.release).toHaveBeenCalledTimes(1);expect(m.send).not.toHaveBeenCalled();expect(m.quote).not.toHaveBeenCalled();expect(screen.getByText('Get live NIM quote')).toBeTruthy();
  });
 });

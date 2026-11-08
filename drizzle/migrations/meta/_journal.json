@@ -85,6 +85,13 @@
       "when": 1794110267690,
       "tag": "0011_durable_collector_submission_outcomes",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1794110835838,
+      "tag": "0012_release_expired_unmatched_collector_purchase",
+      "breakpoints": true
     }
   ]
 }

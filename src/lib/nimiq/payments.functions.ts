@@ -3,7 +3,8 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { buildManifestation, newSeed, INTENTIONS } from "@/lib/manifest";
 import { isValidNimiqAddress, normalizeAddress, quoteAmounts, QUOTE_TTL_MS, requireUnexpired } from "./rules";
-import { networkHead, verifyTransfer, rpc, transactionSchema, type TrustedRpc, RpcPending } from "./rpc.server";
+import { networkHead, verifyTransfer, rpc, transactionSchema, policySchema, type TrustedRpc, RpcPending } from "./rpc.server";
+import { canReleaseUnmatched, releaseAfterHeight } from "./submission";
 import { rpcCoordination } from "./rpc-coordination.server";
 import { liveNimRate } from "./price.server";
 import type { Quote } from "./index";
@@ -88,7 +89,10 @@ export const checkPayment = createServerFn({ method: "POST" }).middleware([requi
       const rows = await rpc(service, 'getTransactionsByAddress', [q.recipient, 100, null], z.array(transactionSchema));
       const candidates = rows.filter(tx => tx.to === q.recipient && tx.value === q.amount_luna && tx.networkId === 5 && tx.executionResult && tx.timestamp !== undefined && tx.timestamp >= Date.parse(q.created_at) && tx.timestamp <= Date.parse(q.expires_at));
       if (rows.length === 100 || candidates.length > 1) return { ...dto(q), retryAfterMs: 60_000, submissionDetail: 'History is incomplete or matching candidates are ambiguous. This purchase remains unresolved.' };
-      if (!candidates[0]) return { ...dto(q), retryAfterMs: 60_000, submissionDetail: 'No candidate in the latest receiving history. This does not prove no broadcast or no charge.' };
+      if (!candidates[0]) {
+        const release = await releaseStatus(service, q, rows);
+        return { ...dto(q), retryAfterMs: release.canRelease ? 300_000 : 60_000, ...release, submissionDetail: release.canRelease ? 'The payment window has closed and no matching transfer reached the receiving wallet. You can release this purchase.' : release.lateMatch ? 'A transfer matching this amount arrived outside the quote window. Reconciliation required; do not pay again.' : 'No candidate in the latest receiving history yet. This does not prove no broadcast or no charge.' };
+      }
       hash = candidates[0].hash;
       const saved = await supabaseAdmin.rpc('record_collector_submission', { _id: q.id, _user_id: context.userId, _outcome: 'hash_received', _hash: hash });
       if (saved.error) throw new Error('Could not save discovered candidate. Reconciliation required.');
@@ -111,4 +115,36 @@ export const checkPayment = createServerFn({ method: "POST" }).middleware([requi
   const result = await supabaseAdmin.rpc("fulfill_testnet_payment", { _id: q.id, _user_id: context.userId, _hash: hash });
   if (result.error) throw new Error("Finalized test payment awaits reconciliation. Do not pay again.");
   return { ...dto(q), txHash: hash, status: "fulfilled", manifestationId: result.data };
+});
+type HistoryRow = z.infer<typeof transactionSchema>;
+async function releaseStatus(service: TrustedRpc, q: QuoteRow, rows: HistoryRow[]) {
+  const head = await networkHead(service, 'testnet');
+  const policy = await rpc(service, 'getPolicyConstants', [], policySchema);
+  // Any transfer of this exact amount after quote creation blocks release, even outside the window.
+  const late = rows.filter(tx => tx.to === q.recipient && tx.value === q.amount_luna && (tx.timestamp === undefined || tx.timestamp >= Date.parse(q.created_at)));
+  const window = policy.transactionValidityWindow;
+  const canRelease = canReleaseUnmatched({ headHeight: head.number, quoteHeight: q.validity_start_height, validityWindow: window, expiresAt: q.expires_at, now: Date.now(), historyComplete: rows.length < 100, matchingTransfers: late.length, hasEvidence: !!(q.tx_hash ?? q.candidate_tx_hash) });
+  return { canRelease, lateMatch: late.length > 0, headHeight: head.number, releaseAfterHeight: window ? releaseAfterHeight(q.validity_start_height, window) : null };
+}
+/** Collector-initiated release of a purchase proven unpayable; re-proves every condition server-side. */
+export const releaseUnmatchedPurchase = createServerFn({ method: "POST" }).middleware([requireSupabaseAuth]).inputValidator(z.object({ id: z.string().uuid() })).handler(async ({ data, context }) => {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data: q } = await supabaseAdmin.from("nimiq_payment_quotes").select("*").eq("id", data.id).eq("user_id", context.userId).single();
+  if (!q || q.network !== "testnet") throw new Error("Payment not found.");
+  if (q.status !== "pending" || q.tx_hash || q.candidate_tx_hash) throw new Error("This purchase has payment evidence or is not unresolved. It cannot be released.");
+  const url = process.env["NIMIQ_TESTNET_RPC_URL"];
+  if (!url) throw new Error("Trusted testnet verification is not configured.");
+  const service: TrustedRpc = { url, authorization: process.env["NIMIQ_TESTNET_RPC_AUTHORIZATION"], coordination: rpcCoordination(supabaseAdmin) };
+  try {
+    await networkHead(service, 'testnet');
+    const rows = await rpc(service, 'getTransactionsByAddress', [q.recipient, 100, null], z.array(transactionSchema));
+    const release = await releaseStatus(service, q, rows);
+    if (!release.canRelease) throw new Error(release.lateMatch ? "A matching transfer exists. Reconciliation required; do not pay again." : "The wallet could still deliver this payment. Release is not safe yet.");
+  } catch (error) {
+    if (error instanceof RpcPending) throw new Error(`Verification service is busy. Try again in ${Math.ceil(error.retryAfterMs / 1000)}s.`);
+    throw error;
+  }
+  const result = await supabaseAdmin.rpc("release_unmatched_collector_purchase", { _id: q.id, _user_id: context.userId });
+  if (result.error) throw new Error("Could not release this purchase. It remains locked.");
+  return true;
 });

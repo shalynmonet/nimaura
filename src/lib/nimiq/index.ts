@@ -8,6 +8,7 @@ export type Quote = {
   savingsLuna: number; rate: number; expiresAt: string; validityStartHeight: number;
   status: string; txHash: string | null; manifestationId: string | null; retryAfterMs?: number;
   submissionOutcome?: string; candidateTxHash?: string | null; submissionStartedAt?: string | null; submissionDetail?: string | null;
+  canRelease?: boolean; headHeight?: number; releaseAfterHeight?: number | null;
 };
 let providerPromise: Promise<NimiqProvider> | undefined;
 export async function hostNetwork(): Promise<Network | undefined> {

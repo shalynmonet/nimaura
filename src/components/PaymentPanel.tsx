@@ -4,7 +4,7 @@ import { Link } from "@tanstack/react-router";
 import { CreditCard, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
-import { createPaymentQuote, getPaymentState, preparePayment, checkPayment, recordSubmission } from "@/lib/nimiq/payments.functions";
+import { createPaymentQuote, getPaymentState, preparePayment, checkPayment, recordSubmission, releaseUnmatchedPurchase } from "@/lib/nimiq/payments.functions";
 import { hostNetwork, initiatePayment, walletError, type Network, type Quote } from "@/lib/nimiq";
 import { LUNA_PER_NIM } from "@/lib/nimiq/rules";
 import { WALLET_WATCHDOG_MS, submissionMessage, classifySubmissionError, candidateStorageKey, singleFlight } from "@/lib/nimiq/submission";
@@ -21,6 +21,7 @@ export function PaymentPanel({ dropId, intention, onFulfilled }: { dropId: strin
   const stateFn = useServerFn(getPaymentState);
   const prepareFn = useServerFn(preparePayment);
   const checkFn = useServerFn(checkPayment);
+  const releaseFn = useServerFn(releaseUnmatchedPurchase);
   const [network, setNetwork] = useState<Network | undefined>();
   const [quote, setQuote] = useState<Quote | null>(null);
   const [busy, setBusy] = useState(false);
@@ -79,6 +80,16 @@ export function PaymentPanel({ dropId, intention, onFulfilled }: { dropId: strin
     } catch (error) { setStatus(await walletError(error)); setRetryUntil(Date.now() + 30000); }
     finally { setBusy(false); checking.current = false; }
   }
+  async function release() {
+    if (!quote || !flight.current.enter()) return;
+    setBusy(true);
+    try {
+      await releaseFn({ data: { id: quote.id } });
+      setQuote(null); setHash(""); setRetryUntil(0);
+      setStatus("Purchase released: its payment window closed with no matching transfer. No matching payment reached the receiving wallet. You can get a new quote.");
+    } catch (error) { setStatus(await walletError(error)); setRetryUntil(Date.now() + 30000); }
+    finally { setBusy(false); flight.current.leave(); }
+  }
   async function pay() {
     if (!quote || quote.status !== 'quoted' || !flight.current.enter()) return;
     setBusy(true);
@@ -123,6 +134,8 @@ export function PaymentPanel({ dropId, intention, onFulfilled }: { dropId: strin
           <input aria-label="Transaction hash" className="mt-1 w-full rounded-sm border border-input bg-card px-3 py-2 font-mono text-xs text-ivory" value={hash} disabled={!!(quote.txHash ?? quote.candidateTxHash)} onChange={(event) => setHash(event.target.value)} />
         </label>
         <Button variant="outline" className="w-full" disabled={busy || now < retryUntil || (hash.length > 0 && !/^[a-f0-9]{64}$/i.test(hash))} onClick={() => check()}><RefreshCw />{now < retryUntil ? `Check again in ${Math.ceil((retryUntil - now) / 1000)}s` : "Check payment status"}</Button>
+        {quote.status === "pending" && !hash && !quote.canRelease && quote.releaseAfterHeight && quote.headHeight !== undefined && quote.releaseAfterHeight > quote.headHeight && <p className="text-xs text-muted-foreground">If no payment appears, you can release this purchase after testnet block {quote.releaseAfterHeight.toLocaleString()} (about {Math.ceil((quote.releaseAfterHeight - quote.headHeight) / 60)} min). Until then the wallet could still deliver it.</p>}
+        {quote.status === "pending" && !hash && quote.canRelease && <Button variant="outline" className="w-full" disabled={busy} onClick={release}>Release this purchase</Button>}
       </>}
     </>}
     {status && <p role="status" className="text-xs text-muted-foreground">{status}</p>}

@@ -18,4 +18,15 @@ export function candidateStorageKey(userId: string, quoteId: string) { return `n
 export function singleFlight() {
   let running = false;
   return { enter: () => { if (running) return false; running = true; return true; }, leave: () => { running = false; } };
+}/**
+ * An unresolved purchase without any hash may be released only once no wallet-signed
+ * transaction for it can still be included: the quote's inclusion window is closed,
+ * the head is two validity windows past the quote height (covering a signature made
+ * while the quote was open), and complete receiving history holds no matching transfer.
+ */
+export function releaseAfterHeight(quoteHeight: number, validityWindow: number) { return quoteHeight + 2 * validityWindow; }
+export function canReleaseUnmatched(input: { headHeight: number; quoteHeight: number; validityWindow: number | undefined; expiresAt: string; now: number; historyComplete: boolean; matchingTransfers: number; hasEvidence: boolean }) {
+  if (input.hasEvidence || !input.validityWindow || !input.historyComplete || input.matchingTransfers > 0) return false;
+  if (input.now <= Date.parse(input.expiresAt)) return false;
+  return input.headHeight >= releaseAfterHeight(input.quoteHeight, input.validityWindow);
 }

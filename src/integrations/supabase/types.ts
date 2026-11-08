@@ -800,6 +800,10 @@ export type Database = {
         }
         Returns: undefined
       }
+      release_unmatched_collector_purchase: {
+        Args: { _id: string; _user_id: string }
+        Returns: undefined
+      }
       reserve_nimiq_rpc_slot: {
         Args: { _cost: number; _key: string }
         Returns: string

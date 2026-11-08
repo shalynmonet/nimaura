@@ -124,7 +124,7 @@ export async function networkHead(service: TrustedRpc, network: Network, fresh =
   if (block.number !== height) throw new Error("Head block mismatch.");
   return block;
 }
-const policySchema = z.object({ blocksPerBatch: integer.positive().max(128), genesisBlockNumber: integer, transactionValidityWindow: integer.positive().max(7200).optional() });
+export const policySchema = z.object({ blocksPerBatch: integer.positive().max(128), genesisBlockNumber: integer, transactionValidityWindow: integer.positive().max(7200).optional() });
 export async function finalizedHeight(service: TrustedRpc, network: Network, head: number) {
   const height = await rpc(service, 'getMacroBlockBefore', [head + 1], integer);
   if (height > head) throw new Error('Finality checkpoint above head.');
