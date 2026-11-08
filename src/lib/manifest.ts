@@ -82,6 +82,7 @@ export function buildLegacyManifestation(seed: number, intention: Intention): Le
 export type WingGeometry = { path: string; vein: string; transform: string; fold: string };
 export type SeraphConfig = Omit<LegacyManifestConfig, "v"> & {
   v: 2;
+  contentVersion?: 2;
   wings: WingGeometry[];
   eye: { y: number; width: number; height: number; design: "almond" | "diamond" | "round"; pupil: "round" | "slit"; radius: number };
   orbit: { rx: number; ry: number; tilt: number; open: boolean; satellites: number };
@@ -134,7 +135,7 @@ export function buildManifestation(seed: number, intention: Intention, version: 
     }
   }
   return {
-    ...legacy, v: 2, wings,
+    ...legacy, v: 2, contentVersion: 2, wings,
     eye: { y, width: rounded(n(68, 95)), height: rounded(n(26, 43)), design: intention === "remember" ? "diamond" : variant ? "almond" : "round", pupil: r() > .5 ? "slit" : "round", radius: rounded(n(25, 35)) },
     orbit: { rx: rounded(n(111, 157)), ry: rounded(intention === "become" ? n(147, 175) : intention === "remember" ? n(80, 112) : n(98, 140)), tilt: rounded(n(-28, 28)), open: intention === "release", satellites: 3 + Math.floor(n(0, 5)) },
     weave: { size: rounded(n(15, 22)), angle: variant ? 0 : 22.5 },

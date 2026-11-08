@@ -1,4 +1,6 @@
 # NIMAURA roadmap
+- [x] Explicit saved contentVersion 2 selects deterministic trait-specific future writing; unmarked v1/v2 collectibles retain original text. Financial/account code and saved rows unchanged.
+- [x] Eight same-entity samples (88–94 words) with trait summaries saved for review; 11 focused tests/build OK; real legacy encounter preserved and browser-only future fixture stable across refresh at phone size. Not published.
 - [x] Isolated `/art-study` renderer-03 fixed sample: curved UV-woven ribbons, eye, occluding metallic rings and bounded gestures; 11 focused tests/build OK, phone/desktop screenshots, browser touch drag, hold/release/tap/reduced-motion and offscreen pause verified; short capture saved. Not adopted or published; actual iPhone performance awaits device review.
 - [x] Hosted daily-drop audit confirms 120 windows/one entity: next Nov 9 00:00 UTC repeats Woven Seraph; ends Mar 1 2027 00:00 UTC, no auto-extension and no open drop afterwards.
 - [x] Artwork only: saved config.v selects frozen legacy or new six-wing intention-specific geometry and authentic vector houndstooth; no payment/database changes.

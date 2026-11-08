@@ -6,6 +6,7 @@ import { AppShell } from "@/components/AppShell";
 import { WovenSeraph } from "@/components/Entity";
 import { buildManifestation, savedRendererVersion, INTENTION_COPY, type Intention } from "@/lib/manifest";
 import { startDrone, stopDrone } from "@/lib/sound";
+import { encounterWriting } from "@/lib/encounter-writing";
 
 export const Route = createFileRoute("/_authenticated/vault/$id")({
   validateSearch: (s: Record<string, unknown>) => ({ reveal: s["reveal"] === true || s["reveal"] === "true" }),
@@ -69,6 +70,7 @@ function Encounter() {
   if (!e) return <AppShell><p className="mt-16 text-muted-foreground">This entity could not be opened.</p></AppShell>;
   const reflection = (e.reflections as Record<string, string>)[intention];
   const meditation = (e.meditation as string[]) ?? [];
+  const writing = encounterWriting(Number(m.seed), intention, m.config, e.name);
 
   function toggleSound() {
     if (sound) stopDrone();
@@ -119,8 +121,27 @@ function Encounter() {
           </div>
         )}
 
-        <p className="mt-8 font-display text-lg leading-relaxed text-foreground">{e.symbolism}</p>
-        <blockquote className="mt-6 border-l border-gold pl-4 font-display text-xl italic text-ivory">{reflection}</blockquote>
+        {writing ? (
+          <div className="mt-8 space-y-7">
+            <div>
+              <h2 className="eyebrow">Daily lore</h2>
+              <p className="mt-3 font-display text-lg leading-relaxed text-foreground">{writing.dailyLore}</p>
+            </div>
+            <div>
+              <h2 className="font-display text-2xl text-ivory">Your encounter</h2>
+              <p className="mt-3 font-display text-xl leading-relaxed text-foreground">{writing.passage}</p>
+            </div>
+            <div className="border-l border-gold pl-4">
+              <h2 className="eyebrow">Reflection</h2>
+              <p className="mt-3 font-display text-xl italic leading-relaxed text-ivory">{writing.question}</p>
+            </div>
+          </div>
+        ) : (
+          <>
+            <p className="mt-8 font-display text-lg leading-relaxed text-foreground">{e.symbolism}</p>
+            <blockquote className="mt-6 border-l border-gold pl-4 font-display text-xl italic text-ivory">{reflection}</blockquote>
+          </>
+        )}
 
         <div className="mt-8 rounded-sm border p-4 text-sm">
           <p className="eyebrow">Entered your Vault</p>
