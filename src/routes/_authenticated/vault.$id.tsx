@@ -1,10 +1,11 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
+const LivingSculpture = lazy(() => import("@/components/SeraphStudyScene"));
 import { supabase } from "@/integrations/supabase/client";
 import { AppShell } from "@/components/AppShell";
 import { WovenSeraph } from "@/components/Entity";
-import { buildManifestation, savedRendererVersion, INTENTION_COPY, type Intention } from "@/lib/manifest";
+import { buildManifestation, savedRendererVersion, savedSculptureVersion, INTENTION_COPY, type Intention } from "@/lib/manifest";
 import { startDrone, stopDrone } from "@/lib/sound";
 import { encounterWriting } from "@/lib/encounter-writing";
 
@@ -91,7 +92,12 @@ function Encounter() {
           </svg>
         )}
         <div className={phase >= 2 ? "animate-manifest" : "opacity-0"}>
-          <WovenSeraph config={config} className="w-full" />
+          {savedSculptureVersion(m.config) ? (
+            <Suspense fallback={<WovenSeraph config={config} className="w-full" />}>
+              <LivingSculpture seed={Number(m.seed)} path={intention} />
+              <p className="mt-2 text-center text-xs text-muted-foreground">Hold to slow · tap to ripple · drag to shift</p>
+            </Suspense>
+          ) : <WovenSeraph config={config} className="w-full" />}
         </div>
       </div>
 

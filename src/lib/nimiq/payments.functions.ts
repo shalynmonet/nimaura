@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { buildManifestation, newSeed, INTENTIONS } from "@/lib/manifest";
+import { newManifestationSnapshot, newSeed, INTENTIONS } from "@/lib/manifest";
 import { isValidNimiqAddress, normalizeAddress, quoteAmounts, QUOTE_TTL_MS, requireUnexpired } from "./rules";
 import { networkHead, verifyTransfer, rpc, transactionSchema, policySchema, type TrustedRpc, RpcPending } from "./rpc.server";
 import { canReleaseUnmatched, releaseAfterHeight } from "./submission";
@@ -48,7 +48,7 @@ export const createPaymentQuote = createServerFn({ method: "POST" }).middleware(
   const rate = await liveNimRate();
   const amounts = quoteAmounts(rate);
   const seed = newSeed();
-  const result = await supabaseAdmin.from("nimiq_payment_quotes").insert({ user_id: context.userId, drop_id: drop.id, intention: data.intention, seed, config: buildManifestation(seed, data.intention), network: data.network, reserve_address_snapshot: reserve.address, sender: data.address, recipient: normalizeAddress(recipientValue), amount_luna: amounts.amountLuna, savings_luna: amounts.savingsLuna, rate, expires_at: new Date(Math.min(Date.now() + QUOTE_TTL_MS, Date.parse(drop.ends_at))).toISOString(), validity_start_height: head.number }).select("*").single();
+  const result = await supabaseAdmin.from("nimiq_payment_quotes").insert({ user_id: context.userId, drop_id: drop.id, intention: data.intention, seed, config: newManifestationSnapshot(seed, data.intention), network: data.network, reserve_address_snapshot: reserve.address, sender: data.address, recipient: normalizeAddress(recipientValue), amount_luna: amounts.amountLuna, savings_luna: amounts.savingsLuna, rate, expires_at: new Date(Math.min(Date.now() + QUOTE_TTL_MS, Date.parse(drop.ends_at))).toISOString(), validity_start_height: head.number }).select("*").single();
   if (result.error || !result.data) throw new Error("Could not prepare a payment quote. Check existing payment status before retrying.");
   return dto(result.data);
 });

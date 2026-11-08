@@ -100,6 +100,15 @@ export function savedRendererVersion(snapshot: unknown): RendererVersion {
   throw new Error("Unsupported manifestation renderer version");
 }
 
+/** Living 3D sculpture applies only to snapshots created after it shipped; older collectibles keep their still artwork. */
+export const CURRENT_SCULPTURE_VERSION = 3 as const;
+export function newManifestationSnapshot(seed: number, intention: Intention) {
+  return { ...buildManifestation(seed, intention), sculptureVersion: CURRENT_SCULPTURE_VERSION };
+}
+export function savedSculptureVersion(snapshot: unknown): 3 | null {
+  return snapshot && typeof snapshot === "object" && "sculptureVersion" in snapshot && snapshot.sculptureVersion === 3 ? 3 : null;
+}
+
 export function buildManifestation(seed: number, intention: Intention, version: RendererVersion = CURRENT_RENDERER_VERSION): ManifestConfig {
   const legacy = buildLegacyManifestation(seed, intention);
   if (version === 1) return legacy;

@@ -54,3 +54,12 @@ describe("manifestation reproducibility", () => {
     expect(new Set(paths).size).toBe(4);
   });
 });
+
+import { newManifestationSnapshot, savedSculptureVersion } from "./manifest";
+describe("living sculpture versioning", () => {
+  it("marks only new snapshots as living sculptures", () => {
+    expect(savedSculptureVersion(newManifestationSnapshot(42, "receive"))).toBe(3);
+    expect(savedSculptureVersion(buildManifestation(42, "receive"))).toBeNull();
+    expect(savedSculptureVersion({ v: 2, contentVersion: 2 })).toBeNull();
+  });
+});

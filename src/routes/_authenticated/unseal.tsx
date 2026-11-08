@@ -6,7 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { AppShell, Countdown } from "@/components/AppShell";
 import { Seal } from "@/components/Seal";
 import { currentDropQuery, profileQuery } from "@/lib/queries";
-import { buildManifestation, INTENTIONS, INTENTION_COPY, newSeed, type Intention } from "@/lib/manifest";
+import { newManifestationSnapshot, INTENTIONS, INTENTION_COPY, newSeed, type Intention } from "@/lib/manifest";
 import { PaymentPanel } from "@/components/PaymentPanel";
 import { Button } from "@/components/ui/button";
 
@@ -62,7 +62,7 @@ function Resonance() {
     const selected = intention;
     const dropId = drop.data.id;
     const seed = newSeed();
-    const cfg = buildManifestation(seed, selected);
+    const cfg = newManifestationSnapshot(seed, selected);
     return reveal(async () => {
       const { data, error } = await supabase.rpc("unseal_with_credit", { _drop_id: dropId, _intention: selected, _seed: seed, _config: cfg });
       if (error) throw error;
