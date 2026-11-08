@@ -23,6 +23,7 @@ function ArtStudy() {
     <header className="mx-auto flex max-w-5xl items-center justify-between px-5 py-5">
       <Button asChild variant="ghost" size="sm"><Link to="/vault"><ArrowLeft /> Vault</Link></Button>
       <span className="text-xs uppercase text-muted-foreground">NIMAURA · Study 03</span>
+      <Button asChild variant="ghost" size="sm"><Link to="/entity-study">Entity studies</Link></Button>
     </header>
     <div className="text-center">
       <p className="eyebrow">Remember · Fixed sample</p>

@@ -1,4 +1,6 @@
 # NIMAURA roadmap
+- [x] Stage 1: isolated `/entity-study` Seraph/Choir/Foldkeeper four-path preview, 20 focused tests and signed-in motion/phone checks; read-only audit: first eligible drop 9, Nov 9 00:00–Nov 10 00:00 UTC, no protected future drops; unchanged hosted assignments, not published. Native device review pending.
+- [ ] Stage 2: remaining four entities, trusted version snapshots, curated seven-identity rotation and rollover checks (blocked on stage-one visual approval).
 - [x] Fifth purchase diagnosed: pending/null hash, no matching recipient-history candidate; original wallet outcome unknowable from old logs. Normal preview checker confirms unresolved, no payment requested/published.
 - [x] Durable candidate-only outcomes, watchdog/late-hash recovery, duplicate guards, active-only paced checks and history discovery; focused recovery/database/contract tests/build OK. Four collectibles/two payouts/zero credits remain.
 - [x] Explicit saved contentVersion 2 selects deterministic trait-specific future writing; unmarked v1/v2 collectibles retain original text. Financial/account code and saved rows unchanged.

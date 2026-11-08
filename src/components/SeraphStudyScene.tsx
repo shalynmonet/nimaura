@@ -5,6 +5,9 @@ import * as THREE from "three";
 import { advanceStudy, buildSeraphStudy, initialPlayback, type StudyConfig } from "@/lib/seraph-study";
 import { mulberry32 } from "@/lib/manifest";
 import { HOUNDSTOOTH_TOOTH } from "@/components/SeraphV2";
+import OtherEntitySculptures from "./OtherEntitySculptures";
+import { buildEntityStudy, type StudyIdentity } from "@/lib/entity-study";
+import type { Intention } from "@/lib/manifest";
 
 type Input = { held: boolean; x: number; y: number; reduced: boolean; tap: boolean };
 type Palette = { gold: string; ivory: string; ink: string; white: string; black: string };
@@ -155,12 +158,22 @@ function Sculpture({ config, palette, input, host }: { config: StudyConfig; pale
   </>;
 }
 
-export default function SeraphStudyScene() {
+export default function SeraphStudyScene({ identity = "seraph", seed = 408325749, path = "remember" }: { identity?: StudyIdentity; seed?: number; path?: Intention }) {
   const host = useRef<HTMLDivElement>(null);
   const input = useRef<Input>({ held: false, x: 0, y: 0, reduced: false, tap: false });
   const gesture = useRef<{ id: number; x: number; y: number; started: number; moved: boolean } | null>(null);
   const [palette, setPalette] = useState<Palette | null>(null), [active, setActive] = useState(true), [failed, setFailed] = useState(false);
-  const config = useMemo(() => buildSeraphStudy(408325749, "remember"), []);
+  const config = useMemo(() => {
+    const base = buildSeraphStudy(seed, path);
+    if (seed === 408325749 && path === "remember") return base;
+    return { ...base, wings: base.wings.map(w => ({ ...w,
+      length: w.length * (path === "become" ? 1.18 : path === "receive" ? 1.05 : path === "release" ? 1.08 : 1),
+      width: w.width * (path === "receive" ? 1.4 : path === "release" ? .8 : 1),
+      curl: w.curl * (path === "remember" ? 1.15 : path === "release" ? .65 : .9),
+      depth: w.depth * (path === "release" ? 2 : 1),
+    })) };
+  }, [seed, path]);
+  const otherConfig = useMemo(() => buildEntityStudy(identity, seed, path), [identity, seed, path]);
   useEffect(() => {
     const style = getComputedStyle(document.documentElement);
     // Resolve semantic CSS tokens for WebGL, which cannot consume var()/oklch().
@@ -186,7 +199,7 @@ export default function SeraphStudyScene() {
     if (!cancel && g && !g.moved && performance.now() - g.started < 450) input.current.tap = true;
     gesture.current = null; input.current.held = false; input.current.x = 0; input.current.y = 0;
   };
-  return <div ref={host} className="seraph-study-stage" role="img" aria-label="Interactive six-wing Woven Seraph, renderer 03 study" data-renderer-version="3" data-active={active}
+  return <div ref={host} className="seraph-study-stage" role="img" aria-label={`Interactive ${identity} sculpture, ${path} path`} data-identity={identity} data-seed={seed} data-path={path} data-renderer-version="3" data-active={active}
     onPointerDown={e => { if (gesture.current) return; gesture.current = { id: e.pointerId, x: e.clientX, y: e.clientY, started: performance.now(), moved: false }; input.current.held = true; }}
     onPointerMove={e => {
       const g = gesture.current; if (!g || g.id !== e.pointerId) return;
@@ -198,7 +211,7 @@ export default function SeraphStudyScene() {
       input.current.x = dx / 110; input.current.y = -dy / 110;
     }} onPointerUp={() => end(false)} onPointerCancel={() => end(true)} onLostPointerCapture={() => end(true)} onPointerLeave={() => { if (!host.current?.hasPointerCapture(gesture.current?.id ?? -1)) end(true); }}>
     {failed ? <p className="p-8 text-center text-muted-foreground">The sculpture needs WebGL. Please open this study in a browser with graphics enabled.</p> : palette && <Canvas shadows dpr={[1, 1.5]} frameloop={active ? "always" : "never"} camera={{ position: [0, 0, 7.8], fov: 40 }} gl={{ antialias: true, alpha: true, powerPreference: "low-power" }} onCreated={({ gl }) => { gl.domElement.addEventListener("webglcontextlost", () => setFailed(true)); }} fallback={<p className="p-8 text-muted-foreground">WebGL is unavailable in this browser.</p>}>
-      <Sculpture config={config} palette={palette} input={input} host={host} />
+      {identity === "seraph" ? <Sculpture config={config} palette={palette} input={input} host={host} /> : <OtherEntitySculptures config={otherConfig} palette={palette} input={input} host={host} />}
     </Canvas>}
   </div>;
 }
