@@ -22,7 +22,7 @@ describe('hosted quote pricing', () => {
     expect(await liveNimRate()).toBe(0.0002614);
   });
   it.each([0, -1, '0.00026225'])('rejects invalid rate %s', async usd => {
-    vi.stubGlobal('fetch', vi.fn(async () => Response.json({ 'nimiq-2': { usd }, quotes: { USD: { price: usd } }, data: { price: String(usd) } })));
+    vi.stubGlobal('fetch', vi.fn(async () => Response.json({ 'nimiq-2': { usd }, quotes: { USD: { price: usd } }, data: { price: typeof usd === 'string' ? 'not-a-number' : String(usd) } })));
     await expect(liveNimRate()).rejects.toThrow('No payment was requested');
   });
 });
