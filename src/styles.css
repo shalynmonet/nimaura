@@ -130,3 +130,18 @@
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; }
 }
+
+/* Isolated sculptural study: full-bleed, native vertical page scrolling. */
+.seraph-study-stage {
+  width: 100%;
+  height: min(72svh, 760px);
+  min-height: 360px;
+  max-width: 1100px;
+  margin: 0 auto;
+  touch-action: pan-y;
+  user-select: none;
+}
+.seraph-study-stage canvas { display: block; }
+@media (max-width: 600px) {
+  .seraph-study-stage { height: 58svh; min-height: 350px; }
+}

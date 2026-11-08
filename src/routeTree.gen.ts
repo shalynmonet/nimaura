@@ -14,6 +14,7 @@ import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as HubReturnRouteImport } from './routes/hub-return'
 import { Route as AuthenticatedAccountRouteImport } from './routes/_authenticated/account'
+import { Route as AuthenticatedArtStudyRouteImport } from './routes/_authenticated/art-study'
 import { Route as AuthenticatedReserveRouteImport } from './routes/_authenticated/reserve'
 import { Route as AuthenticatedUnsealRouteImport } from './routes/_authenticated/unseal'
 import { Route as AuthenticatedVaultIndexRouteImport } from './routes/_authenticated/vault.index'
@@ -43,6 +44,11 @@ const AuthenticatedAccountRoute = AuthenticatedAccountRouteImport.update({
   path: '/account',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedArtStudyRoute = AuthenticatedArtStudyRouteImport.update({
+  id: '/art-study',
+  path: '/art-study',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedReserveRoute = AuthenticatedReserveRouteImport.update({
   id: '/reserve',
   path: '/reserve',
@@ -69,6 +75,7 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/hub-return': typeof HubReturnRoute
   '/account': typeof AuthenticatedAccountRoute
+  '/art-study': typeof AuthenticatedArtStudyRoute
   '/reserve': typeof AuthenticatedReserveRoute
   '/unseal': typeof AuthenticatedUnsealRoute
   '/vault/$id': typeof AuthenticatedVaultIdRoute
@@ -79,6 +86,7 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/hub-return': typeof HubReturnRoute
   '/account': typeof AuthenticatedAccountRoute
+  '/art-study': typeof AuthenticatedArtStudyRoute
   '/reserve': typeof AuthenticatedReserveRoute
   '/unseal': typeof AuthenticatedUnsealRoute
   '/vault/$id': typeof AuthenticatedVaultIdRoute
@@ -91,6 +99,7 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/hub-return': typeof HubReturnRoute
   '/_authenticated/account': typeof AuthenticatedAccountRoute
+  '/_authenticated/art-study': typeof AuthenticatedArtStudyRoute
   '/_authenticated/reserve': typeof AuthenticatedReserveRoute
   '/_authenticated/unseal': typeof AuthenticatedUnsealRoute
   '/_authenticated/vault/$id': typeof AuthenticatedVaultIdRoute
@@ -103,6 +112,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/hub-return'
     | '/account'
+    | '/art-study'
     | '/reserve'
     | '/unseal'
     | '/vault/$id'
@@ -113,6 +123,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/hub-return'
     | '/account'
+    | '/art-study'
     | '/reserve'
     | '/unseal'
     | '/vault/$id'
@@ -124,6 +135,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/hub-return'
     | '/_authenticated/account'
+    | '/_authenticated/art-study'
     | '/_authenticated/reserve'
     | '/_authenticated/unseal'
     | '/_authenticated/vault/$id'
@@ -174,6 +186,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAccountRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/art-study': {
+      id: '/_authenticated/art-study'
+      path: '/art-study'
+      fullPath: '/art-study'
+      preLoaderRoute: typeof AuthenticatedArtStudyRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/reserve': {
       id: '/_authenticated/reserve'
       path: '/reserve'
@@ -207,6 +226,7 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAccountRoute: typeof AuthenticatedAccountRoute
+  AuthenticatedArtStudyRoute: typeof AuthenticatedArtStudyRoute
   AuthenticatedReserveRoute: typeof AuthenticatedReserveRoute
   AuthenticatedUnsealRoute: typeof AuthenticatedUnsealRoute
   AuthenticatedVaultIdRoute: typeof AuthenticatedVaultIdRoute
@@ -215,6 +235,7 @@ interface AuthenticatedRouteRouteChildren {
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAccountRoute: AuthenticatedAccountRoute,
+  AuthenticatedArtStudyRoute: AuthenticatedArtStudyRoute,
   AuthenticatedReserveRoute: AuthenticatedReserveRoute,
   AuthenticatedUnsealRoute: AuthenticatedUnsealRoute,
   AuthenticatedVaultIdRoute: AuthenticatedVaultIdRoute,

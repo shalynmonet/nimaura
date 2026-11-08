@@ -1,4 +1,6 @@
 # NIMAURA roadmap
+- [x] Isolated `/art-study` renderer-03 fixed sample: curved UV-woven ribbons, eye, occluding metallic rings and bounded gestures; 11 focused tests/build OK, phone/desktop screenshots, browser touch drag, hold/release/tap/reduced-motion and offscreen pause verified; short capture saved. Not adopted or published; actual iPhone performance awaits device review.
+- [x] Hosted daily-drop audit confirms 120 windows/one entity: next Nov 9 00:00 UTC repeats Woven Seraph; ends Mar 1 2027 00:00 UTC, no auto-extension and no open drop afterwards.
 - [x] Artwork only: saved config.v selects frozen legacy or new six-wing intention-specific geometry and authentic vector houndstooth; no payment/database changes.
 - [x] Eight labeled examples inspected at thumbnail/encounter sizes; seven replay tests, exact original SVG comparison and build OK; signed-in mobile Vault/encounter retain all four existing v1 artworks; not published.
 - [x] Diagnose SHA-I payment: official Pay uses HTLC EarlyResolve and ignores requested height; reproduced sender/117-block-height mismatch and overlapping old-worker proof-stripped cache.
