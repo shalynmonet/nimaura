@@ -46,7 +46,9 @@ export async function rpc<T>(service: TrustedRpc, method: string, params: unknow
   if (parsed.protocol !== "https:" || parsed.username || parsed.password) throw new Error("Trusted HTTPS Nimiq service required.");
   const gate = 'nimiq:testnet:shared-outbound';
   const cacheable = method !== 'sendRawTransaction' && !service.fresh;
-  const key = `nimiq:testnet:${method}:${JSON.stringify(params)}`;
+  // Isolate proof-bearing evidence from still-running old deployment workers,
+  // which strip contract fields before writing the shared durable cache.
+  const key = `nimiq:testnet:proof-v1:${method}:${JSON.stringify(params)}`;
   const ttl = method === 'getPolicyConstants' || method === 'getMacroBlockBefore' ? 3_600_000 : method === 'getBlockByNumber' ? 120_000 : method === 'getTransactionByHash' ? 5_000 : 1_000;
   if (cacheable && service.coordination) {
     const cached = await service.coordination.read(key);

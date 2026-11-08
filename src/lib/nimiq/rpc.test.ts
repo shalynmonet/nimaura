@@ -70,6 +70,14 @@ describe("documented public-node compatibility (rpc.testnet.nimiqwatch.com)", ()
   it("fails closed under persistent rate limiting", async () => { rateLimited = 99; await expect(verifyTransfer(service, expected)).rejects.toBeInstanceOf(RpcPending); });
 });
 describe('paced bounded and resumable RPC', () => {
+  it('never reads proof-stripped transaction caches written by the old release', async () => {
+    const legacyKey = `nimiq:testnet:getTransactionByHash:${JSON.stringify([hash])}`;
+    const read = vi.fn(async (key: string) => key === legacyKey ? { ...tx, value: 1 } : null);
+    const coordination: RpcCoordination = { read, claim: async () => 'token', reserve: async () => Date.now(), write: async () => {}, defer: async () => {} };
+    expect((await rpc({url:service.url,coordination}, 'getTransactionByHash', [hash], transactionSchema)).value).toBe(100000);
+    expect(read).toHaveBeenCalledWith(`nimiq:testnet:proof-v1:getTransactionByHash:${JSON.stringify([hash])}`);
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
   function coordinator() {
     const cache = new Map<string, unknown>(); const claimed = new Set<string>();
     const reserve = vi.fn(async () => Date.now());
