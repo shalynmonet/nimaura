@@ -43,4 +43,17 @@ if wait "$C1"; then WINS=$((WINS+1)); fi
 if wait "$C2"; then WINS=$((WINS+1)); fi
 test "$WINS" = 1
 test "$("${PSQL[@]}" -At -c "SELECT count(*) FROM public.testnet_payouts WHERE status='uncertain'")" = 1
-echo 'PASS: independent connections fulfill once, claim once, and never requeue uncertain payouts.'
+"${PSQL[@]}" >/dev/null <<'SQL'
+INSERT INTO public.nimiq_wallet_links(user_id,address,public_key,network) VALUES('00000000-0000-4000-8000-000000000002','treasury',repeat('a',64),'testnet');
+INSERT INTO public.testnet_hub_requests(id,user_id,kind,payout_id,expires_at) SELECT '00000000-0000-4000-8000-000000000009','00000000-0000-4000-8000-000000000002','payout',id,now()+interval '5 minutes' FROM public.testnet_payouts;
+SQL
+ACCEPT="SELECT public.accept_testnet_hub_result('00000000-0000-4000-8000-000000000009','00000000-0000-4000-8000-000000000002','',repeat('b',64),'abcd')"
+"${PSQL[@]}" -c "$ACCEPT" >"$DIR/accept1" 2>&1 & A1=$!
+"${PSQL[@]}" -c "$ACCEPT" >"$DIR/accept2" 2>&1 & A2=$!
+WINS=0
+if wait "$A1"; then WINS=$((WINS+1)); fi
+if wait "$A2"; then WINS=$((WINS+1)); fi
+test "$WINS" = 1
+test "$("${PSQL[@]}" -At -c 'SELECT count(*) FROM public.testnet_hub_signed_payouts')" = 1
+test "$("${PSQL[@]}" -At -c "SELECT count(*) FROM public.testnet_payouts WHERE status='uncertain' AND tx_hash=repeat('b',64)")" = 1
+echo 'PASS: independent connections fulfill once, claim once, accept signed Hub bytes once, and never requeue uncertain payouts.'

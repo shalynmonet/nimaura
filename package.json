@@ -19,6 +19,7 @@
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
     "@lovable.dev/cloud-auth-js": "^1.1.2",
+    "@nimiq/hub-api": "^1.16.0",
     "@nimiq/mini-app-sdk": "^0.2.4",
     "@noble/curves": "^2.4.0",
     "@noble/hashes": "^2.4.0",

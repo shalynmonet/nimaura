@@ -6,26 +6,35 @@ NIMAURA does not enable payments or configure wallets automatically. Mainnet pay
 
 Nimiq Pay selects its own signing account. Neither entering a Reserve address nor selecting a NIMAURA address selects Pay's signer. The collector stays logged in; no recovery-word import or logout is required or requested.
 
-Separate web-Wallet Reserve proof and treasury payouts are **not supported by the current Pay-only adapter**. The payout UI proves the current Pay signer matches the treasury before claiming or opening a transaction request. A collector-funded second transfer is never a payout substitute.
+Separate web-Wallet Reserve proof and treasury signing now use browser-only Hub actions. Open NIMAURA in the same Safari/browser context as the official testnet web Wallet and sign in to NIMAURA there. Collector Pay stays signed in and collector payments are unchanged. Native Pay-WebView handoff is gated; no device interoperability is claimed. A collector-funded second transfer is never a payout substitute.
 
-## Minimal future Hub adapter (not implemented)
+## Implemented minimal Hub adapter
 
 Official sources:
 - https://nimiq.dev/hub/getting-started
-- https://nimiq.github.io/hub/api-reference/sign-message
+- https://nimiq.dev/hub/api-reference
+- https://nimiq.dev/hub/guide/integration
 - https://nimiq.dev/hub/guide/transactions
 
 Use the documented testnet Hub from a user action in the browser context owning the separate web Wallet. `hub.signMessage({ appName, signer, message })` selects the claimed address; convert returned public-key/signature bytes to hex and verify the existing durable ownership challenge server-side.
 
-For payouts, `hub.signTransaction({ appName, sender, recipient, value, fee, extraData, validityStartHeight })` must preserve the durable claim, treasury sender, Reserve snapshot, integer allocation and unique public reference. Hub returns signed transaction data, not a broadcast. Validate its returned raw fields against the claim before a single explicitly approved broadcast using the documented testnet Web Client `sendRawTransaction(signed.serializedTx)`. Never import a signing key. Capture uncertain state before broadcast; reconcile rather than retry. Hub checkout is not a drop-in replacement because it does not preserve this queue's exact validity-start-height binding.
+The endpoint is fixed to `https://hub.nimiq-testnet.com`. Treasury ownership derives the signer from the payout server-side, never from a client override. Payout `signTransaction` requests bind sender, Reserve snapshot, integer Luna, fee zero, public reference and server height. Only reference-bearing extended transactions with basic accounts and single Ed25519 proofs are supported. Multisig, contracts, WebAuthn, other fees/networks and multiple returned transactions fail closed.
 
-Device handoff/session availability and protocol signature fixtures must be tested before enabling this path. A web Wallet session is not assumed to be available in Pay's iOS WebView.
+The backend decodes signed bytes and verifies signer, signature, content hash and every intent field against the stored claim, not Hub raw metadata. Installed official Core supplies cryptographic parity fixtures in tests only; server verification uses portable JavaScript, not server WASM.
+
+One-use expiring owner-bound redirect state is consumed atomically with private signed-byte storage and hash pinning before one trusted-RPC `sendRawTransaction` attempt. Crashes between storage and broadcast intentionally remain unresolved; no resend path exists. Unknown broadcasts and reloads only reconcile the pinned hash and canonical macro finality. No client database role can read the signed bytes.
+
+Mobile browser requests use official `RedirectRequestBehavior`, a fixed same-origin `/hub-return` URL and opaque local correlation state, not credentials. Return listeners register before `checkRedirectResponse()`. The server rechecks owner, expiry, state consumption, roles and treasury proof. SessionStorage temporarily retains the return for reload/sign-in recovery and clears signed bytes after confirmation; it contains no signing key.
+
+Actual iOS browser wallet-session access, redirects and device approval remain untested. Mock redirect tests are not device validation. Sign into NIMAURA separately in the browser; do not transfer collector credentials in URLs or import recovery words. Activation remains outside this task.
 
 ## Existing manually sent payout reconciliation
 
 For an already claimed (`uncertain`) payout, enter its known hash in the admin queue, then choose **Reconcile delivery**. With no hash, the server searches trusted treasury history for the unique public reference. Neither action sends funds.
 
 Recognition still requires exact treasury sender, Reserve snapshot, allocation, reference, testnet network, claimed validity-start height, successful execution, canonical inclusion during the five-minute claim window, and macro finality/ancestry. Verification may occur after expiry if inclusion happened within the window. A supplied hash cannot override those requirements or be reused for another payout.
+
+Once Hub acceptance pins a hash, reconciliation always uses it and rejects replacement. Legacy manually sent claims without a pinned hash still accept the original hash or reference lookup; neither operation broadcasts.
 
 A transfer sent before the claim, with a different validity height, without the reference, outside the claim window, or beyond bounded ancestry/history coverage remains unresolved. Do not send again. Keep its original hash/reference; a separately reviewed historical recovery/accounting path is required. No permissive historical import is implemented.
 

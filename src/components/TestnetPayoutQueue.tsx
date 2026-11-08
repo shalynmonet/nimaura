@@ -3,13 +3,14 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { RefreshCw, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { listPayouts, claimPayout, reconcilePayout } from "@/lib/nimiq/payouts.functions";
-import { hostNetwork, initiatePayout, signWalletChallenge, walletError } from "@/lib/nimiq";
-import { createWalletChallenge, verifyWalletChallenge } from "@/lib/nimiq/wallet.functions";
+import { listPayouts, reconcilePayout } from "@/lib/nimiq/payouts.functions";
+import { walletError } from "@/lib/nimiq";
+import { beginHubOwnership, beginHubPayout } from '@/lib/nimiq/hub.functions';
+import { openHub, requireHubBrowser } from '@/lib/nimiq/hub';
 
 export function TestnetPayoutQueue() {
-  const list = useServerFn(listPayouts), claim = useServerFn(claimPayout), reconcile = useServerFn(reconcilePayout);
-  const challenge = useServerFn(createWalletChallenge), verifyWallet = useServerFn(verifyWalletChallenge);
+  const list = useServerFn(listPayouts), approve = useServerFn(beginHubPayout), reconcile = useServerFn(reconcilePayout);
+  const treasuryProof = useServerFn(beginHubOwnership);
   const qc = useQueryClient();
   const queue = useQuery({ queryKey: ["testnet-payout-queue"], queryFn: () => list() });
   const [busy, setBusy] = useState(false), [message, setMessage] = useState("");
@@ -19,22 +20,21 @@ export function TestnetPayoutQueue() {
     try {
       let hash: string | undefined = hashes[id] || undefined;
       if (send) {
-        if (await hostNetwork() !== "testnet") throw new Error("Open the treasury wallet in Nimiq Pay testnet.");
-        const item = queue.data?.find((p) => p.id === id);
-        if (!item) throw new Error("Reload the queue.");
-        // Prove Pay's current signer is treasury before claiming or opening a transfer dialog.
-        // Separate web Wallets cannot pass this via collector Pay; they require Hub support.
-        const proof = await challenge({ data: { address: item.treasury_sender, network: "testnet", purpose: "connect" } });
-        const signed = await signWalletChallenge(proof.message);
-        await verifyWallet({ data: { id: proof.id, publicKey: signed.publicKey, signature: signed.signature } });
-        const payout = await claim({ data: { id } });
-        // Claim is uncertain before any wallet request. Errors never return it to queued.
-        hash = await initiatePayout(payout);
+        await requireHubBrowser();
+        const intent = await approve({ data: { id } });
+        await openHub(intent);
+        return;
       }
       const result = await reconcile({ data: { id, ...(hash ? { txHash: hash } : {}) } });
       setMessage(result.status === "paid" ? "Finalized testnet delivery confirmed." : "Delivery unresolved. Reconcile again; do not resend.");
     } catch (error) { setMessage(await walletError(error)); }
     finally { setBusy(false); await qc.invalidateQueries({ queryKey: ["testnet-payout-queue"] }); }
+  }
+  async function proveTreasury(id: string, address: string) {
+    setBusy(true);
+    try { await requireHubBrowser(); await openHub(await treasuryProof({ data: { address, purpose: 'treasury', payoutId: id } })); }
+    catch (e) { setMessage(e instanceof Error ? e.message : 'Treasury proof unavailable.'); }
+    finally { setBusy(false); }
   }
   return <section className="mt-8 space-y-4 border-t pt-6">
     <h2 className="font-display text-2xl text-ivory">Testnet payout queue</h2>
@@ -45,7 +45,10 @@ export function TestnetPayoutQueue() {
       <p className="break-all font-mono text-xs text-muted-foreground">From: {p.treasury_sender}</p>
       <p className="break-all font-mono text-xs text-muted-foreground">To: {p.reserve_destination}</p>
       <p className="break-all font-mono text-xs text-muted-foreground">{p.reference}</p>
-      {p.status === "queued" && <Button variant="outline" disabled={busy} onClick={() => act(p.id, true)}><Send />Approve in treasury wallet</Button>}
+      {p.status === "queued" && <div className="flex flex-wrap gap-2">
+        <Button variant="outline" disabled={busy} onClick={() => proveTreasury(p.id, p.treasury_sender)}>Verify treasury · browser only</Button>
+        <Button variant="outline" disabled={busy} onClick={() => act(p.id, true)}><Send />Approve payout · browser only</Button>
+      </div>}
       {p.status === "uncertain" && <>
         <label className="block text-xs text-muted-foreground">Known transaction hash (optional)
           <input aria-label={`Transaction hash ${p.reference}`} value={hashes[p.id] ?? ""} onChange={(e) => setHashes((old) => ({ ...old, [p.id]: e.target.value }))} className="mt-1 w-full rounded-sm border border-input bg-card p-2 font-mono text-xs" />

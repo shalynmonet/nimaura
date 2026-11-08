@@ -43,6 +43,20 @@
       "when": 1794099708974,
       "tag": "0005_final_testnet_invariants_and_trigger_grants",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1794100121149,
+      "tag": "0006_private_testnet_hub_requests",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1794100282062,
+      "tag": "0007_hub_result_empty_sentinels",
+      "breakpoints": true
     }
   ]
 }

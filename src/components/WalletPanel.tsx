@@ -8,11 +8,15 @@ import { supabase } from "@/integrations/supabase/client";
 import { connectWallet, hostNetwork, signWalletChallenge, walletError, type Network } from "@/lib/nimiq";
 import { createWalletChallenge, verifyWalletChallenge } from "@/lib/nimiq/wallet.functions";
 import { isValidNimiqAddress, normalizeAddress } from "@/lib/nimiq/rules";
+import { beginHubOwnership } from '@/lib/nimiq/hub.functions';
+import { openHub, requireHubBrowser } from '@/lib/nimiq/hub';
 
 export function WalletPanel() {
   const qc = useQueryClient();
   const createChallenge = useServerFn(createWalletChallenge);
   const verifyChallenge = useServerFn(verifyWalletChallenge);
+  const hubOwnership = useServerFn(beginHubOwnership);
+  const [webReserve, setWebReserve] = useState('');
   const [network, setNetwork] = useState<Network | undefined>();
   const [accounts, setAccounts] = useState<string[]>([]);
   const [selected, setSelected] = useState("");
@@ -53,6 +57,15 @@ export function WalletPanel() {
     finally { setBusy(false); }
   }
   const visible = (links.data ?? []).filter((link) => !network || link.network === network);
+  async function proveWebReserve() {
+    setBusy(true);
+    try {
+      await requireHubBrowser();
+      const intent = await hubOwnership({ data: { address: webReserve, purpose: 'reserve' } });
+      await openHub(intent);
+    } catch (e) { setStatus(e instanceof Error ? e.message : 'Browser wallet unavailable.'); }
+    finally { setBusy(false); }
+  }
   return <section className="mt-4 space-y-3 rounded-sm border p-4">
     <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Nimiq wallet {network && `· ${network}`}</p>
     {visible.map((link) => <div key={link.id} className="text-xs">
@@ -73,6 +86,10 @@ export function WalletPanel() {
       </label>
       <Button variant="outline" disabled={busy} onClick={() => prove("reserve")}><ShieldCheck />Verify Reserve address</Button>
     </>}
+    <label className="block text-xs text-muted-foreground">Testnet web-wallet Reserve address
+      <input aria-label="Testnet web-wallet Reserve address" value={webReserve} onChange={e => setWebReserve(e.target.value)} className="mt-1 w-full rounded-sm border border-input bg-card px-3 py-2 font-mono text-xs text-ivory" />
+    </label>
+    <Button variant="outline" disabled={busy || !isValidNimiqAddress(webReserve)} onClick={proveWebReserve}><ShieldCheck />Verify testnet Reserve · browser only</Button>
     {status && <p role="status" className="break-words text-xs text-muted-foreground">{status}</p>}
     <p className="text-xs text-muted-foreground">NIMAURA never asks for your private key or recovery phrase.</p>
   </section>;

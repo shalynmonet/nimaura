@@ -12,5 +12,7 @@
 - [x] Testnet: verify public UI, database rules and tests.
 - [ ] Testnet: signed-in admin/device payment and delivery end-to-end awaits collector/admin account, configuration and Nimiq Pay access.
 - [x] Assess separate official testnet web Wallet signing; Pay cannot select these wallets. Document minimal Hub path and strict manual-hash reconciliation.
-- [ ] Separate web-Wallet Reserve/treasury Hub signing adapter and iOS handoff (not implemented; Pay-only operations remain gated).
+- [x] Implement browser-only testnet Hub Reserve/treasury signing, durable redirect state, private signed-byte storage and single broadcast.
+- [x] Verify Hub negative signature/intent/state/replay tests and existing regression checks.
+- [ ] Validate actual iOS browser/Pay handoff (requires device access; native handoff remains gated).
 - [ ] Activate payments (explicitly outside this task; switches remain off and no automatic payouts).

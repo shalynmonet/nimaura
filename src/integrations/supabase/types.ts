@@ -463,6 +463,100 @@ export type Database = {
           },
         ]
       }
+      testnet_hub_requests: {
+        Row: {
+          challenge_id: string | null
+          consumed_at: string | null
+          created_at: string
+          expires_at: string
+          id: string
+          kind: string
+          payout_id: string | null
+          user_id: string
+        }
+        Insert: {
+          challenge_id?: string | null
+          consumed_at?: string | null
+          created_at?: string
+          expires_at: string
+          id?: string
+          kind: string
+          payout_id?: string | null
+          user_id: string
+        }
+        Update: {
+          challenge_id?: string | null
+          consumed_at?: string | null
+          created_at?: string
+          expires_at?: string
+          id?: string
+          kind?: string
+          payout_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "testnet_hub_requests_challenge_id_fkey"
+            columns: ["challenge_id"]
+            isOneToOne: false
+            referencedRelation: "nimiq_wallet_challenges"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "testnet_hub_requests_payout_id_fkey"
+            columns: ["payout_id"]
+            isOneToOne: false
+            referencedRelation: "testnet_payouts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "testnet_hub_requests_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      testnet_hub_signed_payouts: {
+        Row: {
+          broadcast_attempted_at: string
+          payout_id: string
+          request_id: string
+          signed_bytes: string
+          tx_hash: string
+        }
+        Insert: {
+          broadcast_attempted_at?: string
+          payout_id: string
+          request_id: string
+          signed_bytes: string
+          tx_hash: string
+        }
+        Update: {
+          broadcast_attempted_at?: string
+          payout_id?: string
+          request_id?: string
+          signed_bytes?: string
+          tx_hash?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "testnet_hub_signed_payouts_payout_id_fkey"
+            columns: ["payout_id"]
+            isOneToOne: true
+            referencedRelation: "testnet_payouts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "testnet_hub_signed_payouts_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: true
+            referencedRelation: "testnet_hub_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       testnet_payouts: {
         Row: {
           amount_luna: number
@@ -576,6 +670,16 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      accept_testnet_hub_result: {
+        Args: {
+          _bytes: string
+          _hash: string
+          _id: string
+          _key: string
+          _user: string
+        }
+        Returns: boolean
+      }
       claim_testnet_payout: {
         Args: {
           _expires: string

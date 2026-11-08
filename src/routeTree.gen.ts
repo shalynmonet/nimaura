@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthRouteImport } from './routes/auth'
+import { Route as HubReturnRouteImport } from './routes/hub-return'
 import { Route as AuthenticatedAccountRouteImport } from './routes/_authenticated/account'
 import { Route as AuthenticatedReserveRouteImport } from './routes/_authenticated/reserve'
 import { Route as AuthenticatedUnsealRouteImport } from './routes/_authenticated/unseal'
@@ -30,6 +31,11 @@ const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
   path: '/auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const HubReturnRoute = HubReturnRouteImport.update({
+  id: '/hub-return',
+  path: '/hub-return',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedAccountRoute = AuthenticatedAccountRouteImport.update({
@@ -61,6 +67,7 @@ const AuthenticatedVaultIdRoute = AuthenticatedVaultIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/hub-return': typeof HubReturnRoute
   '/account': typeof AuthenticatedAccountRoute
   '/reserve': typeof AuthenticatedReserveRoute
   '/unseal': typeof AuthenticatedUnsealRoute
@@ -70,6 +77,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/hub-return': typeof HubReturnRoute
   '/account': typeof AuthenticatedAccountRoute
   '/reserve': typeof AuthenticatedReserveRoute
   '/unseal': typeof AuthenticatedUnsealRoute
@@ -81,6 +89,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
+  '/hub-return': typeof HubReturnRoute
   '/_authenticated/account': typeof AuthenticatedAccountRoute
   '/_authenticated/reserve': typeof AuthenticatedReserveRoute
   '/_authenticated/unseal': typeof AuthenticatedUnsealRoute
@@ -92,6 +101,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/auth'
+    | '/hub-return'
     | '/account'
     | '/reserve'
     | '/unseal'
@@ -101,6 +111,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/auth'
+    | '/hub-return'
     | '/account'
     | '/reserve'
     | '/unseal'
@@ -111,6 +122,7 @@ export interface FileRouteTypes {
     | '/'
     | '/_authenticated'
     | '/auth'
+    | '/hub-return'
     | '/_authenticated/account'
     | '/_authenticated/reserve'
     | '/_authenticated/unseal'
@@ -122,6 +134,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
+  HubReturnRoute: typeof HubReturnRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -145,6 +158,13 @@ declare module '@tanstack/react-router' {
       path: '/auth'
       fullPath: '/auth'
       preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/hub-return': {
+      id: '/hub-return'
+      path: '/hub-return'
+      fullPath: '/hub-return'
+      preLoaderRoute: typeof HubReturnRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/account': {
@@ -208,6 +228,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
+  HubReturnRoute: HubReturnRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

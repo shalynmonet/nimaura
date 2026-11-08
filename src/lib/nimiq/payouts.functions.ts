@@ -45,7 +45,8 @@ export const reconcilePayout = createServerFn({ method: "POST" }).middleware([re
   const url = process.env["NIMIQ_TESTNET_RPC_URL"];
   if (!url) throw new Error("Trusted testnet RPC required.");
   const service: TrustedRpc = { url, authorization: process.env["NIMIQ_TESTNET_RPC_AUTHORIZATION"] };
-  const hashes = data.txHash ? [data.txHash.toLowerCase()] : await findPayoutHashes(service, p.treasury_sender, p.reference);
+  if (p.tx_hash && data.txHash && p.tx_hash !== data.txHash.toLowerCase()) throw new Error('Stored payout hash cannot be replaced.');
+  const hashes = p.tx_hash ? [p.tx_hash] : data.txHash ? [data.txHash.toLowerCase()] : await findPayoutHashes(service, p.treasury_sender, p.reference);
   if (data.txHash && !hashes.includes(data.txHash.toLowerCase())) hashes.push(data.txHash.toLowerCase());
   if (hashes.length > 1) throw new Error("Multiple transfers may match. Manual investigation required; never resend.");
   const hash = hashes[0];
