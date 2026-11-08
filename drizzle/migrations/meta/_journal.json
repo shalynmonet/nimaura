@@ -22,6 +22,27 @@
       "when": 1794098841216,
       "tag": "0002_restrict_profile_wallet_and_credit_updates",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1794099415247,
+      "tag": "0003_isolated_testnet_manual_payouts_and_least_privilege",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1794099619335,
+      "tag": "0004_harden_testnet_claim_null_guards",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1794099708974,
+      "tag": "0005_final_testnet_invariants_and_trigger_grants",
+      "breakpoints": true
     }
   ]
 }

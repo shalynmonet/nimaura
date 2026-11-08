@@ -19,6 +19,12 @@ export const Route = createFileRoute("/_authenticated/reserve")({
 });
 
 function Reserve() {
+  const tests = useQuery({ queryKey: ["my-testnet-payouts"], queryFn: async () => {
+    const { data, error } = await supabase.from("testnet_payouts").select("amount_luna,status,user_id");
+    if (error) throw error;
+    const user = await supabase.auth.getUser();
+    return data.filter((row) => row.user_id === user.data.user?.id);
+  } });
   const profile = useQuery(profileQuery());
   const wallets = useQuery({ queryKey: ["wallet-links"], queryFn: async () => {
     const { data, error } = await supabase.from("nimiq_wallet_links").select("*").eq("is_reserve", true);
@@ -72,6 +78,11 @@ function Reserve() {
       </div>
 
       <h2 className="mt-8 font-display text-2xl text-ivory">Savings history</h2>
+      {!!tests.data?.length && <section className="my-4 space-y-2 border-y py-4">
+        <h3 className="text-sm text-warning">Testnet only — not real savings</h3>
+        <p className="text-sm text-muted-foreground">Pending: {tests.data.filter((p) => p.status !== "paid").reduce((n,p) => n+p.amount_luna,0)/100_000} test NIM</p>
+        <p className="text-sm text-muted-foreground">Delivered: {tests.data.filter((p) => p.status === "paid").reduce((n,p) => n+p.amount_luna,0)/100_000} test NIM</p>
+      </section>}
       {t.isLoading ? <div className="mt-3 h-20 animate-pulse bg-muted" /> : real.length === 0 ? (
         <p className="mt-3 text-sm text-muted-foreground">No verified transfers yet.</p>
       ) : (

@@ -5,19 +5,19 @@ vi.mock("@nimiq/mini-app-sdk", () => ({
   init: mock.init,
   NimiqProviderError: { is: (e: unknown) => typeof e === "object" && e !== null && "type" in e },
 }));
-import { connectWallet, hostNetwork, initiatePayment, signWalletChallenge, walletError, type Quote } from "./index";
+import { connectWallet, hostNetwork, initiatePayment, initiatePayout, signWalletChallenge, walletError, type Quote } from "./index";
 describe("Documented SDK integration", () => {
   beforeEach(() => {
-    mock.network = "mainnet";
+    mock.network = "testnet";
     mock.list.mockResolvedValue(["NQ07 0000 0000 0000 0000 0000 0000 0000 0000"]);
     mock.sign.mockResolvedValue({ publicKey: "public", signature: "signature" });
     mock.send.mockResolvedValue("a".repeat(64));
     mock.consensus.mockResolvedValue(true);
-    mock.init.mockResolvedValue({ listAccounts: mock.list, sign: mock.sign, sendBasicTransaction: mock.send, isConsensusEstablished: mock.consensus });
+    mock.init.mockResolvedValue({ listAccounts: mock.list, sign: mock.sign, sendBasicTransaction: mock.send, sendBasicTransactionWithData: mock.send, isConsensusEstablished: mock.consensus });
     mock.send.mockClear();
   });
   it("initializes the injected provider and requests listAccounts", async () => {
-    expect(await connectWallet()).toEqual({ accounts: ["NQ0700000000000000000000000000000000"], network: "mainnet" });
+    expect(await connectWallet()).toEqual({ accounts: ["NQ0700000000000000000000000000000000"], network: "testnet" });
     expect(mock.init).toHaveBeenCalledWith({ timeout: 5000 });
     expect(mock.list).toHaveBeenCalled();
   });
@@ -30,13 +30,13 @@ describe("Documented SDK integration", () => {
     expect(await hostNetwork()).toBeUndefined();
     await expect(connectWallet()).rejects.toThrow("did not report its network");
   });
-  const quote: Quote = { id: "quote", network: "mainnet", recipient: "NQ0700000000000000000000000000000000", sender: "NQ0700000000000000000000000000000000", amountLuna: 100_000, savingsLuna: 50_000, rate: 1, expiresAt: "2099-01-01T00:00:00Z", validityStartHeight: 123, status: "quoted", txHash: null, manifestationId: null };
+  const quote: Quote = { id: "quote", network: "testnet", recipient: "NQ0700000000000000000000000000000000", sender: "NQ0700000000000000000000000000000000", amountLuna: 100_000, savingsLuna: 50_000, rate: 1, expiresAt: "2099-01-01T00:00:00Z", validityStartHeight: 123, status: "quoted", txHash: null, manifestationId: null };
   it("requests sendBasicTransaction with exact Luna rather than NIM", async () => {
     expect(await initiatePayment(quote)).toBe("a".repeat(64));
     expect(mock.send).toHaveBeenCalledWith({ recipient: quote.recipient, value: 100_000, validityStartHeight: 123 });
   });
   it("does not submit after a host network change", async () => {
-    mock.network = "testnet";
+    mock.network = "mainnet";
     await expect(initiatePayment(quote)).rejects.toThrow("network changed");
     expect(mock.send).not.toHaveBeenCalled();
   });
@@ -46,5 +46,19 @@ describe("Documented SDK integration", () => {
   });
   it("handles native wallet cancellation", async () => {
     expect(await walletError({ type: "PERMISSION_DENIED" })).toContain("canceled");
+  });
+  it("never sends a mainnet payment", async () => {
+    mock.network = "mainnet";
+    await expect(initiatePayment({ ...quote, network: "mainnet" })).rejects.toThrow("Mainnet");
+    expect(mock.send).not.toHaveBeenCalled();
+  });
+  it("includes the public payout reference without asking for a signing key", async () => {
+    await initiatePayout({ network: "testnet", status: "uncertain", reference: "NIMAURA:test", reserve_destination: quote.recipient, amount_luna: 50_000, validity_start_height: 123, expires_at: quote.expiresAt });
+    expect(mock.send).toHaveBeenCalledWith({ recipient: quote.recipient, value: 50_000, data: "NIMAURA:test", validityStartHeight: 123 });
+  });
+  it("propagates ambiguous wallet failure without retrying", async () => {
+    mock.send.mockRejectedValueOnce(new Error("Broadcast uncertain"));
+    await expect(initiatePayout({ network: "testnet", status: "uncertain", reference: "NIMAURA:test", reserve_destination: quote.recipient, amount_luna: 50_000, validity_start_height: 123, expires_at: quote.expiresAt })).rejects.toThrow("uncertain");
+    expect(mock.send).toHaveBeenCalledTimes(1);
   });
 });

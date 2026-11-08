@@ -6,4 +6,11 @@
 - [x] Verify SDK calls and payment/security rules with unit tests and live database grant checks.
 - [ ] Verify signed-in wallet/Reserve flow end-to-end (requires a signed-up collector; auth currently has no users).
 - [ ] Test wallet operations inside Nimiq Pay (requires device-host access).
-- [ ] Activate real payments and automatic Reserve transfers (requires receiving address, trusted network service and payout mechanism).
+- [x] Testnet: restrict live grants and verify collector/anonymous mutation denial.
+- [x] Testnet: validated Albatross verifier, isolated atomic payment fulfillment and adversarial tests.
+- [x] Testnet: admin-only manual payout queue, destination snapshots, atomic claims and reference reconciliation.
+- [x] Testnet: verify public UI, database rules and tests.
+- [ ] Testnet: signed-in admin/device payment and delivery end-to-end awaits collector/admin account, configuration and Nimiq Pay access.
+- [x] Assess separate official testnet web Wallet signing; Pay cannot select these wallets. Document minimal Hub path and strict manual-hash reconciliation.
+- [ ] Separate web-Wallet Reserve/treasury Hub signing adapter and iOS handoff (not implemented; Pay-only operations remain gated).
+- [ ] Activate payments (explicitly outside this task; switches remain off and no automatic payouts).

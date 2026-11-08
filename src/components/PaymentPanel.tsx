@@ -48,7 +48,7 @@ export function PaymentPanel({ dropId, intention, onFulfilled }: { dropId: strin
       const result = await checkFn({ data: { id, ...(txHash ? { txHash } : {}) } });
       setQuote(result); setHash(result.txHash ?? txHash);
       if (result.manifestationId) onFulfilled(result.manifestationId);
-      else setStatus(result.status === "verified" ? "Testnet payment verified. No real collectible or savings issued." : "Payment pending. Do not pay again; check status shortly.");
+      else setStatus(result.status === "fulfilled" ? "Testnet payment verified. Test Reserve payout queued; no real collectible or savings issued." : "Payment pending. Do not pay again; check status shortly.");
     } catch (error) { setStatus(await walletError(error)); }
     finally { setBusy(false); }
   }
@@ -66,7 +66,7 @@ export function PaymentPanel({ dropId, intention, onFulfilled }: { dropId: strin
     finally { setBusy(false); }
   }
   return <section className="space-y-3 border-y py-5">
-    <p className="eyebrow">Paid unsealing · $1 USD in NIM {network && `· ${network}`}</p>
+    <p className="eyebrow">Testnet payment · $1 USD equivalent {network && `· ${network}`}</p>
     {!quote ? <Button variant="outline" className="w-full" disabled={!intention || busy} onClick={loadQuote}><RefreshCw />Get live NIM quote</Button> : <>
       <dl className="space-y-2 text-sm">
         <Row label="You pay" value={`${(quote.amountLuna / LUNA_PER_NIM).toLocaleString()} NIM`} />
@@ -77,7 +77,7 @@ export function PaymentPanel({ dropId, intention, onFulfilled }: { dropId: strin
       </dl>
       <p className="break-all font-mono text-xs text-muted-foreground">To: {quote.recipient}</p>
       <p className="text-xs text-muted-foreground">Network fee is shown in Nimiq Pay. Reserve transfers are not active; allocation is not savings delivered.</p>
-      {quote.status === "quoted" ? <Button disabled={busy} className="w-full" onClick={pay}><CreditCard />Pay with Nimiq Pay</Button> : <>
+      {quote.status === "fulfilled" ? <p className="text-xs text-gold">Test payment verified · Reserve payout queued</p> : quote.status === "quoted" ? <Button disabled={busy} className="w-full" onClick={pay}><CreditCard />Pay with Nimiq Pay</Button> : <>
         <p className="text-xs text-warning">{quote.status === "verified" ? "Verified testnet payment" : "Payment pending — do not pay again"}</p>
         <label className="block text-xs text-muted-foreground">Transaction hash
           <input aria-label="Transaction hash" className="mt-1 w-full rounded-sm border border-input bg-card px-3 py-2 font-mono text-xs text-ivory" value={hash} disabled={!!quote.txHash} onChange={(event) => setHash(event.target.value)} />

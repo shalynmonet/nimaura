@@ -185,6 +185,7 @@ export type Database = {
           payment_attempt_id: string | null
           rate: number
           recipient: string
+          reserve_address_snapshot: string | null
           savings_luna: number
           seed: number
           sender: string
@@ -207,6 +208,7 @@ export type Database = {
           payment_attempt_id?: string | null
           rate: number
           recipient: string
+          reserve_address_snapshot?: string | null
           savings_luna: number
           seed: number
           sender: string
@@ -229,6 +231,7 @@ export type Database = {
           payment_attempt_id?: string | null
           rate?: number
           recipient?: string
+          reserve_address_snapshot?: string | null
           savings_luna?: number
           seed?: number
           sender?: string
@@ -460,18 +463,174 @@ export type Database = {
           },
         ]
       }
+      testnet_payouts: {
+        Row: {
+          amount_luna: number
+          claim_token: string | null
+          claimed_at: string | null
+          claimed_by: string | null
+          created_at: string
+          expires_at: string | null
+          id: string
+          network: string
+          payment_quote_id: string
+          reference: string
+          reserve_destination: string
+          status: string
+          treasury_sender: string
+          tx_hash: string | null
+          user_id: string
+          validity_start_height: number | null
+          verified_at: string | null
+        }
+        Insert: {
+          amount_luna: number
+          claim_token?: string | null
+          claimed_at?: string | null
+          claimed_by?: string | null
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          network?: string
+          payment_quote_id: string
+          reference: string
+          reserve_destination: string
+          status?: string
+          treasury_sender: string
+          tx_hash?: string | null
+          user_id: string
+          validity_start_height?: number | null
+          verified_at?: string | null
+        }
+        Update: {
+          amount_luna?: number
+          claim_token?: string | null
+          claimed_at?: string | null
+          claimed_by?: string | null
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          network?: string
+          payment_quote_id?: string
+          reference?: string
+          reserve_destination?: string
+          status?: string
+          treasury_sender?: string
+          tx_hash?: string | null
+          user_id?: string
+          validity_start_height?: number | null
+          verified_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "testnet_payouts_claimed_by_fkey"
+            columns: ["claimed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "testnet_payouts_payment_quote_id_fkey"
+            columns: ["payment_quote_id"]
+            isOneToOne: true
+            referencedRelation: "nimiq_payment_quotes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "testnet_payouts_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_roles: {
+        Row: {
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_roles_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
+      claim_testnet_payout: {
+        Args: {
+          _expires: string
+          _height: number
+          _id: string
+          _operator: string
+        }
+        Returns: {
+          amount_luna: number
+          claim_token: string | null
+          claimed_at: string | null
+          claimed_by: string | null
+          created_at: string
+          expires_at: string | null
+          id: string
+          network: string
+          payment_quote_id: string
+          reference: string
+          reserve_destination: string
+          status: string
+          treasury_sender: string
+          tx_hash: string | null
+          user_id: string
+          validity_start_height: number | null
+          verified_at: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "testnet_payouts"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      complete_testnet_payout: {
+        Args: { _hash: string; _id: string; _operator: string; _token: string }
+        Returns: string
+      }
       consume_nimiq_wallet_challenge: {
         Args: { _id: string; _public_key: string; _user_id: string }
+        Returns: string
+      }
+      fulfill_testnet_payment: {
+        Args: { _hash: string; _id: string; _user_id: string }
         Returns: string
       }
       fulfill_verified_nimiq_payment: {
         Args: { _id: string; _user_id: string }
         Returns: string
+      }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
       }
       simulate_paid_unseal: {
         Args: {
@@ -495,7 +654,7 @@ export type Database = {
       }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -622,6 +781,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin"],
+    },
   },
 } as const

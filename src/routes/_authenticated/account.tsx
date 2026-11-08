@@ -7,6 +7,9 @@ import { AppShell } from "@/components/AppShell";
 import { profileQuery } from "@/lib/queries";
 import { WalletPanel } from "@/components/WalletPanel";
 import { Button } from "@/components/ui/button";
+import { useServerFn } from "@tanstack/react-start";
+import { payoutAccess } from "@/lib/nimiq/payouts.functions";
+import { TestnetPayoutQueue } from "@/components/TestnetPayoutQueue";
 
 export const Route = createFileRoute("/_authenticated/account")({
   head: () => ({
@@ -23,6 +26,8 @@ export const Route = createFileRoute("/_authenticated/account")({
 });
 
 function Account() {
+  const accessFn = useServerFn(payoutAccess);
+  const access = useQuery({ queryKey: ["payout-access"], queryFn: () => accessFn() });
   const profile = useQuery(profileQuery());
   const qc = useQueryClient();
   const navigate = useNavigate();
@@ -80,6 +85,7 @@ function Account() {
       </div>
 
       <WalletPanel />
+      {access.data === true && <TestnetPayoutQueue />}
 
       <div className="mt-4 space-y-3 rounded-sm border p-4">
         <label className="block">
