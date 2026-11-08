@@ -28,3 +28,8 @@ use the editor.
   own key and store it in Secrets.
 - **Secrets.** Lovable manages them. Do not put secret values in the repo.
 <!-- LOVABLE:END -->
+
+## NIMAURA project rules
+- Credit spends and collectible issuance happen only in SECURITY DEFINER SQL functions (`unseal_with_credit`, `simulate_paid_unseal`); profiles.credits has no client UPDATE grant. Why: prevents duplicate/forged credits and enforces drop windows server-side.
+- Manifestations render from `buildManifestation(seed, intention)` in src/lib/manifest.ts; stored config is a snapshot only. Why: reproducibility.
+- Nimiq code lives in src/lib/nimiq/; never call SDK functions not verified against nimiq.dev docs, and simulated rows must keep `is_simulated`/`source='simulated'`. Why: no fake claims of real payments.
