@@ -6,9 +6,13 @@ export async function liveNimRate() {
       headers: { 'User-Agent': 'NIMAURA/1.0 (https://nimaura.sha-i.com; testnet quote pricing)' },
       signal: AbortSignal.timeout(10_000),
     });
-    if (!response.ok) throw new Error('Unavailable');
+    if (!response.ok) {
+      console.warn('NIMAURA quote pricing unavailable', { status: response.status });
+      throw new Error('Unavailable');
+    }
     return z.object({ 'nimiq-2': z.object({ usd: z.number().positive() }) }).parse(await response.json())['nimiq-2'].usd;
-  } catch {
+  } catch (error) {
+    console.warn('NIMAURA quote pricing failed', { kind: error instanceof Error ? error.name : 'unknown' });
     throw new Error('Live NIM pricing is unavailable. No payment was requested.');
   }
 }
