@@ -35,7 +35,9 @@ export function PaymentPanel({ dropId, intention, onFulfilled }: { dropId: strin
       const { data: auth } = await supabase.auth.getUser(); userId.current = auth.user?.id ?? null;
       const active = await hostNetwork() ?? 'testnet'; setNetwork(active);
       try {
-        const saved = await stateFn({ data: { network: active } }); setQuote(saved);
+        const latest = await stateFn({ data: { network: active } });
+        // A finished purchase belongs in the Vault; the panel starts fresh for the next one.
+        const saved = latest?.status === 'fulfilled' ? null : latest; setQuote(saved);
         const local = saved && userId.current ? localStorage.getItem(candidateStorageKey(userId.current, saved.id)) : null;
         setHash(saved?.txHash ?? saved?.candidateTxHash ?? local ?? '');
       } catch { setHistoryFailed(true); setStatus('Could not load payment status. Reload to recover it; new payments are locked.'); }
@@ -118,7 +120,7 @@ export function PaymentPanel({ dropId, intention, onFulfilled }: { dropId: strin
   }
   return <section className="space-y-3 border-y py-5">
     <p className="eyebrow">Testnet payment · $1 USD equivalent {network && `· ${network}`}</p>
-    {!quote ? <Button variant="outline" className="w-full" disabled={!loaded || historyFailed || !intention || busy} onClick={loadQuote}><RefreshCw />Get live NIM quote</Button> : <>
+    {!quote ? <><Button variant="outline" className="w-full" disabled={!loaded || historyFailed || !intention || busy} onClick={loadQuote}><RefreshCw />Get live NIM quote</Button>{!quote && loaded && !intention && <p className="text-xs text-muted-foreground">Choose Become, Release, Receive, or Remember above to get a quote.</p>}</> : <>
       <dl className="space-y-2 text-sm">
         <Row label="You pay" value={`${(quote.amountLuna / LUNA_PER_NIM).toLocaleString()} NIM`} />
         <Row label="Reserve allocation (50%)" value={`${(quote.savingsLuna / LUNA_PER_NIM).toLocaleString()} NIM`} />
