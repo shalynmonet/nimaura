@@ -25,5 +25,5 @@
 - [ ] Validate actual iOS browser/Pay handoff (requires device access; native handoff remains gated).
 - [x] Owner-authorized release: reversibly enable collector testnet payments and publish the tested fixes to the current domain; preserve mainnet/manual payouts OFF.
 - [x] Verify published SHA-I wallet/Reserve/admin queue, mobile intentions and unchanged Vault/credits; confirm published mainnet/manual payout gates.
-- [ ] Corrective release: diagnose the published quote retry loop from hosted logs/coordination, add a reproducing regression, apply the smallest fix and publish; preserve mainnet/manual payouts OFF.
-- [ ] Published unsigned quote readiness: verify fresh SHA-I quote fields and unchanged counts after the correction; do not pay until production succeeds.
+- [x] Corrective release: reproduced workerd redirect-error rejection and pricing 403; applied manual no-follow RPC/fresh quote heads and an identifying price-request header, with 114 passing tests and concurrency checks; published to the same domain.
+- [x] Published unsigned quote readiness: SHA-I created/read back a fresh testnet quote at 02:42 UTC, 381315540 Luna with 190657770 Reserve allocation; exact identities/expiry verified, 2 collectibles/0 payouts/0 credits unchanged; mainnet/manual payout gates confirmed OFF.
