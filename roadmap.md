@@ -1,6 +1,7 @@
 # NIMAURA roadmap
-- [ ] Diagnose the existing SHA-I Pay HTLC payment using official protocol and read-only chain evidence; never request another payment.
-- [ ] Apply minimal cryptographic contract/quote compatibility fix with negative tests, publish, and reconcile the same transaction through normal verification; verify one collectible/pending payout and unchanged credits.
+- [x] Diagnose SHA-I payment: official Pay uses HTLC EarlyResolve and ignores requested height; reproduced sender/117-block-height mismatch and overlapping old-worker proof-stripped cache.
+- [x] Published minimal contract/signature/height and cache-version fixes; 139 tests and independent races pass, build OK; real read-only finality completed with 43 paced calls/zero 429s.
+- [x] Published normal verification fulfilled existing hash 58dcd3fa…a43dc6 at 02:59:06 UTC; replay returns same collectible: 3 Vault items total (1 TESTNET), 1 queued 190657770-Luna payout, 0 credits/0 delivered savings; original receive/408325749 seed preserved.
 - [x] Repair: reversibly set payment enable configuration OFF; preserve mainnet/payout settings and do not publish.
 - [x] Repair: bounded paced macro finality with durable caching/coalescing, retry delays and live budget checks.
 - [x] Validate the supplied genuine historical hash through read-only verification only; never issue from this fixture.
@@ -17,7 +18,8 @@
 - [x] Testnet: validated Albatross verifier, isolated atomic payment fulfillment and adversarial tests.
 - [x] Testnet: admin-only manual payout queue, destination snapshots, atomic claims and reference reconciliation.
 - [x] Testnet: verify public UI, database rules and tests.
-- [ ] Testnet: actual device payment/collectible/delivery end-to-end waits for successful published quote verification and device access; manual payouts remain disabled.
+- [x] Testnet: actual user device payment reconciled through published verification, issued one labeled Vault collectible and one pending allocation.
+- [ ] Testnet: actual Reserve delivery awaits explicit manual payout activation and operator wallet approval; manual payouts remain disabled.
 - [x] Assess separate official testnet web Wallet signing; Pay cannot select these wallets. Document minimal Hub path and strict manual-hash reconciliation.
 - [x] Implement browser-only testnet Hub Reserve/treasury signing, durable redirect state, private signed-byte storage and single broadcast.
 - [x] Verify Hub negative signature/intent/state/replay tests and existing regression checks.
