@@ -1,4 +1,6 @@
 # NIMAURA roadmap
+- [ ] Diagnose the existing SHA-I Pay HTLC payment using official protocol and read-only chain evidence; never request another payment.
+- [ ] Apply minimal cryptographic contract/quote compatibility fix with negative tests, publish, and reconcile the same transaction through normal verification; verify one collectible/pending payout and unchanged credits.
 - [x] Repair: reversibly set payment enable configuration OFF; preserve mainnet/payout settings and do not publish.
 - [x] Repair: bounded paced macro finality with durable caching/coalescing, retry delays and live budget checks.
 - [x] Validate the supplied genuine historical hash through read-only verification only; never issue from this fixture.

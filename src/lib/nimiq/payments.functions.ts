@@ -77,7 +77,7 @@ export const checkPayment = createServerFn({ method: "POST" }).middleware([requi
   const service: TrustedRpc = { url, authorization: process.env["NIMIQ_TESTNET_RPC_AUTHORIZATION"], coordination: rpcCoordination(supabaseAdmin) };
   const expected = { txHash: hash, sender: q.sender, recipient: q.recipient, amountLuna: q.amount_luna, network: "testnet" as const, validityStartHeight: q.validity_start_height, createdAt: q.created_at, expiresAt: q.expires_at };
   try {
-    if (!await verifyTransfer(service, expected)) return { ...dto(q), status: "pending", retryAfterMs: 10_000 };
+    if (!await verifyTransfer(service, expected, undefined, true)) return { ...dto(q), status: "pending", retryAfterMs: 10_000 };
   } catch (error) {
     if (error instanceof RpcPending) return { ...dto(q), status: "pending", retryAfterMs: error.retryAfterMs };
     throw error;

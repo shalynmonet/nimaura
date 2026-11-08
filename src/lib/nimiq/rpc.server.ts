@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { isValidNimiqAddress, normalizeAddress, type Network } from "./rules";
 import { validatePaymentEvidence, type ExpectedPayment } from "./verification";
+import { verifyPayContract } from './pay-contract';
 
 const integer = z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER);
 const hash = z.string().regex(/^[a-f0-9]{64}$/i).transform((v) => v.toLowerCase());
@@ -8,6 +9,9 @@ const address = z.string().transform(normalizeAddress).refine(isValidNimiqAddres
 export const transactionSchema = z.object({ hash, from: address, to: address, value: integer, fee: integer,
   networkId: integer, validityStartHeight: integer, blockNumber: integer.optional(), timestamp: integer.optional(),
   executionResult: z.boolean(), recipientData: z.string().regex(/^(?:[a-f0-9]{2})*$/i).transform((v) => v.toLowerCase()),
+  fromType: integer.optional(), toType: integer.optional(), flags: integer.optional(),
+  senderData: z.string().regex(/^(?:[a-f0-9]{2})*$/i).optional(),
+  proof: z.string().regex(/^(?:[a-f0-9]{2})*$/i).max(4096).optional(),
 });
 export const blockSchema = z.object({ number: integer, timestamp: integer, parentHash: hash, network: z.union([integer, z.string()]), type: z.enum(["macro", "micro"]), hash });
 export type RpcCoordination = {
@@ -118,7 +122,7 @@ export async function networkHead(service: TrustedRpc, network: Network, fresh =
   if (block.number !== height) throw new Error("Head block mismatch.");
   return block;
 }
-const policySchema = z.object({ blocksPerBatch: integer.positive().max(128), genesisBlockNumber: integer });
+const policySchema = z.object({ blocksPerBatch: integer.positive().max(128), genesisBlockNumber: integer, transactionValidityWindow: integer.positive().max(7200).optional() });
 export async function finalizedHeight(service: TrustedRpc, network: Network, head: number) {
   const height = await rpc(service, 'getMacroBlockBefore', [head + 1], integer);
   if (height > head) throw new Error('Finality checkpoint above head.');
@@ -132,7 +136,7 @@ export function referenceHex(reference: string) {
   if (bytes.length > 64) throw new Error("Payout reference too long.");
   return Array.from(bytes, (v) => v.toString(16).padStart(2, "0")).join("");
 }
-export async function verifyTransfer(service: TrustedRpc, expected: ExpectedPayment, reference?: string) {
+export async function verifyTransfer(service: TrustedRpc, expected: ExpectedPayment, reference?: string, collectorPayContract = false) {
   const head = await networkHead(service, expected.network);
   let tx: z.infer<typeof transactionSchema> | null;
   try {
@@ -142,7 +146,21 @@ export async function verifyTransfer(service: TrustedRpc, expected: ExpectedPaym
     throw error;
   }
   if (!tx) return false;
-  if (!validatePaymentEvidence(tx, expected, head.number)) return false;
+  let boundExpected = expected;
+  if (collectorPayContract && reference === undefined && expected.network === 'testnet' && tx.fromType === 2) {
+    // State fields are immutable contract authorization, not relatedAddresses.
+    // The configured trusted node's canonical testnet head was checked above.
+    const contract = await rpc(service, 'getAccountByAddress', [tx.from], z.object({ address, type: z.literal('htlc'), sender: address, recipient: address }));
+    verifyPayContract(tx, expected.sender, contract);
+    const policy = await rpc(service, 'getPolicyConstants', [], policySchema);
+    const window = policy.transactionValidityWindow;
+    // Pay deliberately uses max(remoteHeight, head)+1, not the requested quote
+    // height. Bound this signed height by quote head, inclusion and chain policy;
+    // the exact saved quote timestamps remain mandatory in validation below.
+    if (!window || tx.blockNumber === undefined || tx.validityStartHeight < expected.validityStartHeight || tx.validityStartHeight > tx.blockNumber || tx.blockNumber - tx.validityStartHeight >= window || tx.blockNumber - expected.validityStartHeight >= window) throw new Error('Pay transaction height outside quote/policy bounds.');
+    boundExpected = { ...expected, sender: tx.from, validityStartHeight: tx.validityStartHeight };
+  }
+  if (!validatePaymentEvidence(tx, boundExpected, head.number)) return false;
   if (tx.blockNumber === undefined) return false;
   const policy = await rpc(service, 'getPolicyConstants', [], policySchema);
   if (tx.blockNumber < policy.genesisBlockNumber) throw new Error('Invalid inclusion policy height.');
@@ -153,13 +171,14 @@ export async function verifyTransfer(service: TrustedRpc, expected: ExpectedPaym
   const macro = await rpc(service, 'getBlockByNumber', [checkpoint, false], blockSchema);
   assertRpcNetwork(expected.network, macro.network);
   if (macro.number !== checkpoint || macro.type !== 'macro') throw new Error('Invalid canonical macro checkpoint.');
-  if (!validatePaymentEvidence(tx, expected, macro.number)) return false;
+  if (!validatePaymentEvidence(tx, boundExpected, macro.number)) return false;
   if (reference !== undefined && tx.recipientData !== referenceHex(reference)) throw new Error("Payout reference mismatch.");
   const canonical = await rpc(service, "getBlockByNumber", [tx.blockNumber, true], blockSchema.extend({ transactions: z.array(transactionSchema) }));
   assertRpcNetwork(expected.network, canonical.network);
   if (canonical.number !== tx.blockNumber || canonical.type !== "micro") throw new Error("Invalid canonical inclusion block.");
   const included = canonical.transactions.find((item) => item.hash === tx.hash);
-  if (!included || !validatePaymentEvidence(included, expected, macro.number) || (reference !== undefined && included.recipientData !== referenceHex(reference))) throw new Error("Transfer absent from canonical block.");
+  if (!included || !validatePaymentEvidence(included, boundExpected, macro.number) || (reference !== undefined && included.recipientData !== referenceHex(reference))) throw new Error("Transfer absent from canonical block.");
+  if (boundExpected !== expected && (included.proof !== tx.proof || included.fromType !== tx.fromType || included.toType !== tx.toType || included.senderData !== tx.senderData || included.recipientData !== tx.recipientData || included.flags !== tx.flags || included.fee !== tx.fee)) throw new Error('Canonical Pay contract evidence mismatch.');
   if (included.blockNumber !== canonical.number || included.timestamp !== canonical.timestamp || tx.timestamp !== canonical.timestamp) throw new Error("Canonical transaction metadata mismatch.");
   // Bind inclusion to the finalizing macro by canonical parent hashes, even on mixed backends.
   let child = macro;

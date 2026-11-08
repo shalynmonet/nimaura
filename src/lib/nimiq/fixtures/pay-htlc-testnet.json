@@ -1,0 +1,54 @@
+{
+  "transaction": {
+    "hash": "58dcd3fa5ad15520383add9d310482f0c1541bb46b59a592c2b74c6bcca43dc6",
+    "blockNumber": 16189317,
+    "timestamp": 1794105845585,
+    "size": 266,
+    "from": "NQ18 2RPG SQRP DRUS 5YF0 X496 ULX1 VBF8 TPNP",
+    "fromType": 2,
+    "to": "NQ67 X8Y3 PBLP K1S7 EA8P A8P2 61TS J4HU HCQC",
+    "toType": 0,
+    "value": 381315540,
+    "fee": 0,
+    "senderData": "",
+    "recipientData": "",
+    "flags": 0,
+    "validityStartHeight": 16189317,
+    "proof": "0100c1534c708122968212c6709526801d18218ce9303590f2bca473213d99b24aaf0012bfb1a6a06d6183c4c041c22958330be7f80fb8fba588dec61e0570ec8d1c35e50d884fb6bbdad76fdf6eabb2ff54ec36eb6b013b5f0b9d60857070c16da4000068b71f09b739a4d46eade70302e9ca0202e28a1836258615c2b40884230d0bec00c637d4638814df4b0e6a6c777cbc6480ea77c6ff75975bfbe5a981bb3d5ba7d6abec2793d86994b0e36a4fd7b7e49b0d7cd96ac9f52062817862a8a021954a03",
+    "networkId": 5,
+    "executionResult": true
+  },
+  "contract": {
+    "address": "NQ18 2RPG SQRP DRUS 5YF0 X496 ULX1 VBF8 TPNP",
+    "balance": 10618684460,
+    "type": "htlc",
+    "sender": "NQ87 UL6T 0FSH X6KX SMEF DRUN 0NSV MPUD TX09",
+    "recipient": "NQ54 FTGY F6VJ EJPU NSMN RA5Q 0K21 8EQT Q05P",
+    "hashRoot": {
+      "algorithm": "blake2b",
+      "hash": "0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    "hashCount": 1,
+    "timeout": 1795308966771,
+    "totalAmount": 11000000000
+  },
+  "creation": {
+    "hash": "5ec7ba36e8a65e88e4b086d15808085db3686faa7c96ad086b0d759435b29111",
+    "blockNumber": 16182839,
+    "timestamp": 1794099367585,
+    "size": 248,
+    "from": "NQ87 UL6T 0FSH X6KX SMEF DRUN 0NSV MPUD TX09",
+    "fromType": 0,
+    "to": "NQ18 2RPG SQRP DRUS 5YF0 X496 ULX1 VBF8 TPNP",
+    "toType": 2,
+    "value": 11000000000,
+    "fee": 0,
+    "senderData": "",
+    "recipientData": "e50db03f51f1a7ed55cf6e79605b5dadf8ddf8097ee1f79bb274afcb6ab6ca8b804c4143b1bc00b701000000000000000000000000000000000000000000000000000000000000000001000001a200c0d373",
+    "flags": 1,
+    "validityStartHeight": 16182839,
+    "proof": "0068b71f09b739a4d46eade70302e9ca0202e28a1836258615c2b40884230d0bec00ce3144a402e5baf54a31af6cba8acf880b4adfd6a288b179b68580b908a29e3898283fa10a143bed0146415fa547939410d22e8c92cc8be05e431249d4d58f05",
+    "networkId": 5,
+    "executionResult": true
+  }
+}
