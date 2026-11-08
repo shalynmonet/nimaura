@@ -5,6 +5,7 @@ import { buildManifestation, newSeed, INTENTIONS } from "@/lib/manifest";
 import { isValidNimiqAddress, normalizeAddress, quoteAmounts, QUOTE_TTL_MS, requireUnexpired } from "./rules";
 import { networkHead, verifyTransfer, type TrustedRpc, RpcPending } from "./rpc.server";
 import { rpcCoordination } from "./rpc-coordination.server";
+import { liveNimRate } from "./price.server";
 import type { Quote } from "./index";
 import type { Database } from "@/integrations/supabase/types";
 
@@ -43,12 +44,7 @@ export const createPaymentQuote = createServerFn({ method: "POST" }).middleware(
   if (!drop || now < Date.parse(drop.starts_at) || now >= Date.parse(drop.ends_at)) throw new Error("This drop is closed.");
   const service: TrustedRpc = { url, authorization: process.env["NIMIQ_TESTNET_RPC_AUTHORIZATION"], coordination: rpcCoordination(supabaseAdmin) };
   const head = await networkHead(service, "testnet", true);
-  let rate: number;
-  try {
-    const res = await fetch("https://api.coingecko.com/api/v3/simple/price?ids=nimiq-2&vs_currencies=usd", { signal: AbortSignal.timeout(10_000) });
-    if (!res.ok) throw new Error("Unavailable");
-    rate = z.object({ "nimiq-2": z.object({ usd: z.number().positive() }) }).parse(await res.json())["nimiq-2"].usd;
-  } catch { throw new Error("Live NIM pricing is unavailable. No payment was requested."); }
+  const rate = await liveNimRate();
   const amounts = quoteAmounts(rate);
   const seed = newSeed();
   const result = await supabaseAdmin.from("nimiq_payment_quotes").insert({ user_id: context.userId, drop_id: drop.id, intention: data.intention, seed, config: buildManifestation(seed, data.intention), network: data.network, reserve_address_snapshot: reserve.address, sender: data.address, recipient: normalizeAddress(recipientValue), amount_luna: amounts.amountLuna, savings_luna: amounts.savingsLuna, rate, expires_at: new Date(Math.min(Date.now() + QUOTE_TTL_MS, Date.parse(drop.ends_at))).toISOString(), validity_start_height: head.number }).select("*").single();
