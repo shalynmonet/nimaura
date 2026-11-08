@@ -11,6 +11,8 @@ export const Route = createFileRoute("/_authenticated/vault/$id")({
   validateSearch: (s: Record<string, unknown>) => ({ reveal: s["reveal"] === true || s["reveal"] === "true" }),
   head: () => ({
     meta: [
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
       { title: "Encounter — NIMAURA" },
       { name: "description", content: "A private encounter with an unsealed entity." },
       { property: "og:title", content: "Encounter — NIMAURA" },

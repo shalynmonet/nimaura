@@ -7,6 +7,8 @@ import { currentDropQuery, profileQuery, sessionQuery } from "@/lib/queries";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
       { title: "NIMAURA — Today's sealed artifact" },
       { name: "description", content: "A new mysterious entity waits to be unsealed every 24 hours. Choose an intention. Save for the future." },
       { property: "og:title", content: "NIMAURA — Unseal the unseen" },

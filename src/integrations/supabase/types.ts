@@ -171,6 +171,156 @@ export type Database = {
           },
         ]
       }
+      nimiq_payment_quotes: {
+        Row: {
+          amount_luna: number
+          config: Json
+          created_at: string
+          drop_id: string
+          expires_at: string
+          id: string
+          intention: string
+          manifestation_id: string | null
+          network: string
+          payment_attempt_id: string | null
+          rate: number
+          recipient: string
+          savings_luna: number
+          seed: number
+          sender: string
+          status: string
+          tx_hash: string | null
+          user_id: string
+          validity_start_height: number
+          verified_at: string | null
+        }
+        Insert: {
+          amount_luna: number
+          config: Json
+          created_at?: string
+          drop_id: string
+          expires_at: string
+          id?: string
+          intention: string
+          manifestation_id?: string | null
+          network: string
+          payment_attempt_id?: string | null
+          rate: number
+          recipient: string
+          savings_luna: number
+          seed: number
+          sender: string
+          status?: string
+          tx_hash?: string | null
+          user_id: string
+          validity_start_height: number
+          verified_at?: string | null
+        }
+        Update: {
+          amount_luna?: number
+          config?: Json
+          created_at?: string
+          drop_id?: string
+          expires_at?: string
+          id?: string
+          intention?: string
+          manifestation_id?: string | null
+          network?: string
+          payment_attempt_id?: string | null
+          rate?: number
+          recipient?: string
+          savings_luna?: number
+          seed?: number
+          sender?: string
+          status?: string
+          tx_hash?: string | null
+          user_id?: string
+          validity_start_height?: number
+          verified_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "nimiq_payment_quotes_drop_id_fkey"
+            columns: ["drop_id"]
+            isOneToOne: false
+            referencedRelation: "daily_drops"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "nimiq_payment_quotes_manifestation_id_fkey"
+            columns: ["manifestation_id"]
+            isOneToOne: false
+            referencedRelation: "manifestations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      nimiq_wallet_challenges: {
+        Row: {
+          address: string
+          consumed_at: string | null
+          created_at: string
+          expires_at: string
+          id: string
+          message: string
+          network: string
+          purpose: string
+          user_id: string
+        }
+        Insert: {
+          address: string
+          consumed_at?: string | null
+          created_at?: string
+          expires_at: string
+          id?: string
+          message: string
+          network: string
+          purpose: string
+          user_id: string
+        }
+        Update: {
+          address?: string
+          consumed_at?: string | null
+          created_at?: string
+          expires_at?: string
+          id?: string
+          message?: string
+          network?: string
+          purpose?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      nimiq_wallet_links: {
+        Row: {
+          address: string
+          id: string
+          is_reserve: boolean
+          network: string
+          public_key: string
+          user_id: string
+          verified_at: string
+        }
+        Insert: {
+          address: string
+          id?: string
+          is_reserve?: boolean
+          network: string
+          public_key: string
+          user_id: string
+          verified_at?: string
+        }
+        Update: {
+          address?: string
+          id?: string
+          is_reserve?: boolean
+          network?: string
+          public_key?: string
+          user_id?: string
+          verified_at?: string
+        }
+        Relationships: []
+      }
       payment_attempts: {
         Row: {
           created_at: string
@@ -315,6 +465,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      consume_nimiq_wallet_challenge: {
+        Args: { _id: string; _public_key: string; _user_id: string }
+        Returns: string
+      }
+      fulfill_verified_nimiq_payment: {
+        Args: { _id: string; _user_id: string }
+        Returns: string
+      }
       simulate_paid_unseal: {
         Args: {
           _config: Json

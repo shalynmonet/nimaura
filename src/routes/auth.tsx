@@ -14,6 +14,8 @@ export const Route = createFileRoute("/auth")({
   },
   head: () => ({
     meta: [
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
       { title: "Enter NIMAURA — Collector sign in" },
       { name: "description", content: "Sign in to keep your private Vault and Reserve." },
       { property: "og:title", content: "Enter NIMAURA" },

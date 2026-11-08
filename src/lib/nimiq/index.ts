@@ -1,74 +1,54 @@
-/**
- * Nimiq integration boundary. Each concern is a separate module so the real
- * Nimiq Mini App SDK can be wired in without touching UI code.
- *
- * STATUS: The official SDK is NOT yet wired. We deliberately do not call any
- * SDK function we have not verified against https://nimiq.dev/mini-apps.
- * Every function below either works for real (quote via public price API) or
- * returns an explicit "not_configured" result.
- */
+import type { NimiqProvider } from "@nimiq/mini-app-sdk";
+import { isValidNimiqAddress, normalizeAddress, requireUnexpired, type Network } from "./rules";
+export { isValidNimiqAddress } from "./rules";
+export type { Network } from "./rules";
 
-export type NotConfigured = { ok: false; reason: "not_configured"; detail: string };
-const NOT_WIRED = (what: string): NotConfigured => ({
-  ok: false,
-  reason: "not_configured",
-  detail: `${what} requires the official Nimiq Mini App SDK running inside Nimiq Pay. Not wired yet.`,
-});
-
-// 1. Wallet connection
-export function isInsideNimiqPay(): boolean {
-  // Placeholder detection: the verified host-detection API from the SDK goes here.
-  return false;
-}
-export async function connectWallet(): Promise<NotConfigured | { ok: true; address: string }> {
-  return NOT_WIRED("Wallet connection");
-}
-
-// 2. Payment quoting — real: uses a public NIM/USD price feed.
 export type Quote = {
-  usd: number;
-  rate: number; // USD per NIM
-  nim: number;
-  savingsNim: number;
-  creatorNim: number;
-  networkFeeNote: string;
-  fetchedAt: string;
+  id: string; network: Network; recipient: string; sender: string; amountLuna: number;
+  savingsLuna: number; rate: number; expiresAt: string; validityStartHeight: number;
+  status: string; txHash: string | null; manifestationId: string | null;
 };
-export async function quoteUnseal(usd = 1): Promise<Quote> {
-  const res = await fetch("https://api.coingecko.com/api/v3/simple/price?ids=nimiq-2&vs_currencies=usd");
-  if (!res.ok) throw new Error("Price feed unavailable");
-  const json = (await res.json()) as { "nimiq-2"?: { usd?: number } };
-  const rate = json["nimiq-2"]?.usd;
-  if (!rate || rate <= 0) throw new Error("Price feed returned no NIM rate");
-  const nim = Math.round((usd / rate) * 1e5) / 1e5;
-  return {
-    usd,
-    rate,
-    nim,
-    savingsNim: Math.round((nim / 2) * 1e5) / 1e5,
-    creatorNim: Math.round((nim / 2) * 1e5) / 1e5,
-    networkFeeNote: "Network fee is shown by Nimiq Pay before you approve.",
-    fetchedAt: new Date().toISOString(),
-  };
+let providerPromise: Promise<NimiqProvider> | undefined;
+export async function hostNetwork(): Promise<Network | undefined> {
+  if (typeof window === "undefined") return undefined;
+  const { getHostNetwork } = await import("@nimiq/mini-app-sdk");
+  return getHostNetwork();
 }
-
-// 3. Payment initiation
-export async function initiatePayment(_q: Quote): Promise<NotConfigured> {
-  return NOT_WIRED("Payment initiation");
+async function provider() {
+  if (typeof window === "undefined") throw new Error("Open NIMAURA inside Nimiq Pay.");
+  if (!providerPromise) {
+    providerPromise = import("@nimiq/mini-app-sdk").then(({ init }) => init({ timeout: 5000 })).catch(() => {
+      providerPromise = undefined;
+      throw new Error("Nimiq Pay wallet unavailable. Open NIMAURA inside an updated Nimiq Pay app.");
+    });
+  }
+  return providerPromise;
 }
-// 4. Independent payment verification (must run server-side against the Nimiq network)
-export async function verifyPayment(_txHash: string): Promise<NotConfigured> {
-  return NOT_WIRED("Payment verification");
+export async function connectWallet() {
+  const p = await provider();
+  const network = await hostNetwork();
+  if (!network) throw new Error("Nimiq Pay did not report its network. Update the app before connecting.");
+  const accounts = (await p.listAccounts()).map(normalizeAddress).filter(isValidNimiqAddress);
+  if (!accounts.length) throw new Error("No valid Nimiq wallet was shared.");
+  return { accounts, network };
 }
-// 5. Reserve address registration — validates format only; ownership proof needs SDK signing.
-export function isValidNimiqAddress(addr: string) {
-  return /^NQ\d{2}( ?[0-9A-Z]{4}){8}$/i.test(addr.trim());
+export async function signWalletChallenge(message: string) {
+  return (await provider()).sign(message);
 }
-// 6/7. Savings transfer initiation + verification (server-side, needs a treasury signer)
-export async function initiateSavingsTransfer(): Promise<NotConfigured> {
-  return NOT_WIRED("Savings transfer");
+export async function initiatePayment(quote: Quote) {
+  requireUnexpired(quote.expiresAt);
+  if (await hostNetwork() !== quote.network) throw new Error("Wallet network changed. Request a new quote.");
+  if (!isValidNimiqAddress(quote.recipient) || !Number.isSafeInteger(quote.amountLuna) || quote.amountLuna <= 0) throw new Error("Invalid payment quote.");
+  const p = await provider();
+  if (!await p.isConsensusEstablished()) throw new Error("Nimiq Pay is reconnecting to the network. Try again shortly.");
+  return p.sendBasicTransaction({ recipient: quote.recipient, value: quote.amountLuna, validityStartHeight: quote.validityStartHeight });
 }
-export async function verifySavingsTransfer(): Promise<NotConfigured> {
-  return NOT_WIRED("Savings transfer verification");
+export async function walletError(error: unknown) {
+  const { NimiqProviderError } = await import("@nimiq/mini-app-sdk");
+  if (NimiqProviderError.is(error)) {
+    if (error.type === "PERMISSION_DENIED") return "Wallet request canceled. Nothing was changed.";
+    if (error.type === "NETWORK_ERROR") return "Wallet network error. Check payment status before trying again.";
+    return "Nimiq Pay could not complete the request. Please try again.";
+  }
+  return error instanceof Error ? error.message : "Wallet request could not be completed.";
 }
-// 8. Collectible issuance happens in the database (unseal_with_credit / future paid fn).

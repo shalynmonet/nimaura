@@ -7,6 +7,8 @@ import { profileQuery } from "@/lib/queries";
 export const Route = createFileRoute("/_authenticated/reserve")({
   head: () => ({
     meta: [
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
       { title: "My Reserve — NIMAURA" },
       { name: "description", content: "Verified NIM savings sent to your own wallet." },
       { property: "og:title", content: "My Reserve — NIMAURA" },
@@ -18,6 +20,11 @@ export const Route = createFileRoute("/_authenticated/reserve")({
 
 function Reserve() {
   const profile = useQuery(profileQuery());
+  const wallets = useQuery({ queryKey: ["wallet-links"], queryFn: async () => {
+    const { data, error } = await supabase.from("nimiq_wallet_links").select("*").eq("is_reserve", true);
+    if (error) throw error;
+    return data;
+  } });
   const t = useQuery({
     queryKey: ["transfers"],
     queryFn: async () => {
@@ -53,11 +60,15 @@ function Reserve() {
 
       <div className="mt-4 rounded-sm border p-4 text-sm">
         <p className="text-xs uppercase tracking-[0.25em] text-muted-foreground">Reserve wallet</p>
-        {profile.data?.reserve_address ? (
-          <p className="mt-1 break-all font-mono text-xs text-ivory">{profile.data.reserve_address}</p>
-        ) : (
-          <p className="mt-1 text-muted-foreground">Not set. <Link to="/account" className="text-gold">Add your NIM address</Link></p>
+        {wallets.data?.length ? wallets.data.map((wallet) => (
+          <div key={wallet.id} className="mt-2">
+            <p className="text-xs text-gold">Ownership verified · {wallet.network}</p>
+            <p className="mt-1 break-all font-mono text-xs text-ivory">{wallet.address}</p>
+          </div>
+        )) : (
+          <p className="mt-1 text-muted-foreground">Not verified. <Link to="/account" className="text-gold">Verify your NIM address</Link></p>
         )}
+        <p className="mt-2 text-xs text-muted-foreground">Automatic Reserve transfers are not active.</p>
       </div>
 
       <h2 className="mt-8 font-display text-2xl text-ivory">Savings history</h2>

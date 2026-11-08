@@ -5,11 +5,14 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { AppShell } from "@/components/AppShell";
 import { profileQuery } from "@/lib/queries";
-import { connectWallet, isInsideNimiqPay, isValidNimiqAddress } from "@/lib/nimiq";
+import { WalletPanel } from "@/components/WalletPanel";
+import { Button } from "@/components/ui/button";
 
 export const Route = createFileRoute("/_authenticated/account")({
   head: () => ({
     meta: [
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
       { title: "Account — NIMAURA" },
       { name: "description", content: "Wallet, credits, Reserve address and preferences." },
       { property: "og:title", content: "Account — NIMAURA" },
@@ -23,7 +26,6 @@ function Account() {
   const profile = useQuery(profileQuery());
   const qc = useQueryClient();
   const navigate = useNavigate();
-  const [addr, setAddr] = useState("");
   const [goal, setGoal] = useState("");
   const payments = useQuery({
     queryKey: ["payments"],
@@ -32,31 +34,23 @@ function Account() {
 
   useEffect(() => {
     if (profile.data) {
-      setAddr(profile.data.reserve_address ?? "");
       setGoal(profile.data.savings_goal_nim ? String(profile.data.savings_goal_nim) : "");
     }
   }, [profile.data]);
 
   async function save() {
-    if (addr && !isValidNimiqAddress(addr)) {
-      toast.error("That doesn't look like a Nimiq address (NQ…).");
-      return;
-    }
+    if (!profile.data) return;
+    if (goal && (!Number.isFinite(Number(goal)) || Number(goal) < 0)) { toast.error("Enter a nonnegative savings goal."); return; }
     const { error } = await supabase
       .from("profiles")
-      .update({ reserve_address: addr ? addr.toUpperCase().replace(/\s+/g, " ").trim() : null, savings_goal_nim: goal ? Number(goal) : null })
-      .eq("id", profile.data!.id);
+      .update({ savings_goal_nim: goal ? Number(goal) : null })
+      .eq("id", profile.data.id);
     if (error) {
       toast.error(error.message);
       return;
     }
     toast.success("Saved");
     qc.invalidateQueries({ queryKey: ["profile"] });
-  }
-
-  async function wallet() {
-    const r = await connectWallet();
-    if (!r.ok) toast.error(r.detail);
   }
 
   async function signOut() {
@@ -85,23 +79,14 @@ function Account() {
         </Link>
       </div>
 
-      <div className="mt-4 rounded-sm border p-4">
-        <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Nimiq wallet</p>
-        <p className="mt-1 text-sm text-ivory">{isInsideNimiqPay() ? "Inside Nimiq Pay" : "Not connected — open NIMAURA inside Nimiq Pay"}</p>
-        <button onClick={wallet} className="mt-3 rounded-sm border border-gold px-4 py-2 text-sm text-ivory">Connect wallet</button>
-      </div>
+      <WalletPanel />
 
       <div className="mt-4 space-y-3 rounded-sm border p-4">
-        <label className="block">
-          <span className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Reserve address (your own wallet)</span>
-          <input className={`${input} mt-1 font-mono`} placeholder="NQ00 0000 0000 0000 0000 0000 0000 0000 0000" value={addr} onChange={(e) => setAddr(e.target.value)} />
-        </label>
-        <p className="text-xs text-muted-foreground">NIMAURA never asks for your private key or recovery phrase.</p>
         <label className="block">
           <span className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Savings goal (NIM, optional)</span>
           <input className={`${input} mt-1`} type="number" min="0" value={goal} onChange={(e) => setGoal(e.target.value)} />
         </label>
-        <button onClick={save} className="w-full rounded-sm border border-gold bg-gold/15 px-4 py-2 text-ivory">Save</button>
+        <Button variant="outline" onClick={save} className="w-full rounded-sm border border-gold bg-gold/15 px-4 py-2 text-ivory">Save</Button>
       </div>
 
       <h2 className="mt-8 font-display text-2xl text-ivory">Transactions</h2>
@@ -121,7 +106,7 @@ function Account() {
         <p className="mt-3 text-sm text-muted-foreground">No payments yet.</p>
       )}
 
-      <button onClick={signOut} className="mt-10 w-full rounded-sm border px-4 py-3 text-sm text-muted-foreground hover:text-ivory">Sign out</button>
+      <Button variant="outline" onClick={signOut} className="mt-10 w-full rounded-sm border px-4 py-3 text-sm text-muted-foreground hover:text-ivory">Sign out</Button>
     </AppShell>
   );
 }

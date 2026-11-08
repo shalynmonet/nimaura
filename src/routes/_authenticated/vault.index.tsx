@@ -8,6 +8,8 @@ import { INTENTION_COPY, type Intention, type ManifestConfig } from "@/lib/manif
 export const Route = createFileRoute("/_authenticated/vault/")({
   head: () => ({
     meta: [
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
       { title: "My Vault — NIMAURA" },
       { name: "description", content: "Your private collection of unsealed manifestations." },
       { property: "og:title", content: "My Vault — NIMAURA" },

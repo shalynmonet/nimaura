@@ -8,6 +8,20 @@
       "when": 1794097232344,
       "tag": "0000_migration",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1794098617123,
+      "tag": "0001_verified_nimiq_wallets_and_payment_quotes",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1794098841216,
+      "tag": "0002_restrict_profile_wallet_and_credit_updates",
+      "breakpoints": true
     }
   ]
 }
