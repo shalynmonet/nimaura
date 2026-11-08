@@ -11,6 +11,9 @@ const SOURCES: { name: string; url: string; parse: (body: unknown) => number }[]
     parse: body => z.object({ 'nimiq-2': z.object({ usd: positive }) }).parse(body)['nimiq-2'].usd },
   { name: 'coinpaprika', url: 'https://api.coinpaprika.com/v1/tickers/nim-nimiq',
     parse: body => z.object({ quotes: z.object({ USD: z.object({ price: positive }) }) }).parse(body).quotes.USD.price },
+  // Exchange last trade in USDT (a dollar-pegged token), used only when both USD sources refuse.
+  { name: 'kucoin', url: 'https://api.kucoin.com/api/v1/market/orderbook/level1?symbol=NIM-USDT',
+    parse: body => positive.parse(Number(z.object({ data: z.object({ price: z.string() }) }).parse(body).data.price)) },
 ];
 
 export async function liveNimRate() {

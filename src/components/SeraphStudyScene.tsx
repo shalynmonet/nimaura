@@ -249,7 +249,6 @@ export default function SeraphStudyScene({ identity = "seraph", seed = 408325749
         if (!e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.setPointerCapture(e.pointerId);
         input.current.gx = dx; input.current.gy = dy; return;
       }
-      if (e.pointerType === "touch" && Math.abs(dy) > Math.abs(dx) + 12) { end(true); return; }
       if (Math.abs(dx) > 10 && !e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.setPointerCapture(e.pointerId);
       input.current.x = dx / 110; input.current.y = -dy / 110;
     }} onPointerUp={e => { if (e.pointerType !== "touch") end(false); }} onPointerCancel={e => { if (e.pointerType !== "touch") end(true); }} onLostPointerCapture={e => { if (e.pointerType !== "touch") end(true); }} onPointerLeave={e => { if (e.pointerType !== "touch" && !host.current?.hasPointerCapture(gesture.current?.id ?? -1)) end(true); }}>

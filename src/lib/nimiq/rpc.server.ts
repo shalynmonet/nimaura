@@ -49,7 +49,8 @@ export async function rpc<T>(service: TrustedRpc, method: string, params: unknow
   // Isolate proof-bearing evidence from still-running old deployment workers,
   // which strip contract fields before writing the shared durable cache.
   const key = `nimiq:testnet:proof-v1:${method}:${JSON.stringify(params)}`;
-  const ttl = method === 'getPolicyConstants' || method === 'getMacroBlockBefore' ? 3_600_000 : method === 'getBlockByNumber' ? 120_000 : method === 'getTransactionByHash' ? 5_000 : 1_000;
+  // Block reads persist long enough for a full paced ancestry walk; parent-hash binding and the fresh final macro reread still reject any change.
+  const ttl = method === 'getPolicyConstants' || method === 'getMacroBlockBefore' ? 3_600_000 : method === 'getBlockByNumber' ? 1_800_000 : method === 'getTransactionByHash' ? 5_000 : 1_000;
   if (cacheable && service.coordination) {
     const cached = await service.coordination.read(key);
     if (method === 'getNetworkId' && cached === 'method-unsupported') throw new RpcMethodUnsupported(method);

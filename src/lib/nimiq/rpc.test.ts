@@ -157,3 +157,13 @@ describe('paced bounded and resumable RPC', () => {
     await expect(networkHead({url:service.url,coordination},'testnet',true)).rejects.toThrow('consensus');
   });
 });
+
+describe("paced ancestry cache", () => {
+  it("keeps block reads long enough for a full multi-call walk to finish", async () => {
+    const ttls: number[] = [];
+    const coordination: RpcCoordination = { read: async () => null, claim: async () => "t", reserve: async () => Date.now(), write: async (_k, _t, _v, ttl) => { ttls.push(ttl); }, defer: async () => {} };
+    await rpc({ ...service, coordination }, "getBlockByNumber", [101, false], z.unknown()).catch(() => {});
+    // A 60-block walk at ~7 blocks per paced call needs several minutes; 2 minutes never finished.
+    expect(ttls[0]).toBeGreaterThanOrEqual(15 * 60_000);
+  });
+});
