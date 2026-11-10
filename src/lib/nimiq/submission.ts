@@ -3,7 +3,7 @@ export type SubmissionOutcome = 'not_requested' | 'awaiting_wallet' | 'cancelled
 export function submissionMessage(outcome: string | undefined, hasHash: boolean) {
   if (hasHash) return 'Transaction hash received—checking finalized payment. Do not pay again.';
   if (outcome === 'awaiting_wallet') return 'Waiting for wallet approval. A submitted transaction has not been confirmed.';
-  if (outcome === 'cancelled') return 'Wallet approval was cancelled. This purchase remains locked while its outcome is checked.';
+  if (outcome === 'cancelled') return 'Wallet approval was cancelled. Checking that no payment arrived; you can then close this purchase and try again.';
   if (outcome === 'rejected') return 'The wallet request was rejected. This does not establish whether funds moved; checking this purchase only.';
   return 'Submission outcome unknown—checking. Do not pay again.';
 }
@@ -25,8 +25,12 @@ export function singleFlight() {
  * while the quote was open), and complete receiving history holds no matching transfer.
  */
 export function releaseAfterHeight(quoteHeight: number, validityWindow: number) { return quoteHeight + 2 * validityWindow; }
-export function canReleaseUnmatched(input: { headHeight: number; quoteHeight: number; validityWindow: number | undefined; expiresAt: string; now: number; historyComplete: boolean; matchingTransfers: number; hasEvidence: boolean }) {
-  if (input.hasEvidence || !input.validityWindow || !input.historyComplete || input.matchingTransfers > 0) return false;
+export function canReleaseUnmatched(input: { headHeight: number; quoteHeight: number; validityWindow: number | undefined; expiresAt: string; now: number; historyComplete: boolean; matchingTransfers: number; hasEvidence: boolean; cancelled?: boolean }) {
+  if (input.hasEvidence || !input.historyComplete || input.matchingTransfers > 0) return false;
+  // Explicit wallet cancellation/rejection before signing: closable once complete history holds no match.
+  // A late verified payment on a closed purchase is still honored, so closure never forfeits a real payment.
+  if (input.cancelled) return true;
+  if (!input.validityWindow) return false;
   if (input.now <= Date.parse(input.expiresAt)) return false;
   return input.headHeight >= releaseAfterHeight(input.quoteHeight, input.validityWindow);
 }

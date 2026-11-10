@@ -1066,6 +1066,10 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      close_cancelled_collector_purchase: {
+        Args: { _id: string; _user_id: string }
+        Returns: undefined
+      }
       collective_count: { Args: { _manifestation: string }; Returns: undefined }
       collective_state: { Args: { _deployment?: string }; Returns: Json }
       complete_mainnet_payout: {
@@ -1102,6 +1106,10 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      pin_late_payment: {
+        Args: { _hash: string; _id: string; _user_id: string }
+        Returns: undefined
       }
       record_collector_submission: {
         Args: {

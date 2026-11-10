@@ -45,7 +45,7 @@ export function PaymentPanel({ dropId, intention, onFulfilled }: { dropId: strin
     })();
   }, [stateFn]);
   useEffect(() => {
-    if (!quote || quote.status !== 'pending') return;
+    if (!quote || (quote.status !== 'pending' && !(quote.status === 'failed' && (quote.candidateTxHash || quote.txHash)))) return;
     const tick = () => {
       if (document.hidden || checking.current || Date.now() < retryUntil) return;
       if (quote.submissionOutcome === 'awaiting_wallet' && quote.submissionStartedAt && Date.now() - Date.parse(quote.submissionStartedAt) < WALLET_WATCHDOG_MS) return;
@@ -56,7 +56,7 @@ export function PaymentPanel({ dropId, intention, onFulfilled }: { dropId: strin
     return () => { clearInterval(timer); document.removeEventListener('visibilitychange', tick); };
   }, [quote, hash, retryUntil]);
   async function loadQuote() {
-    if (!intention || !loaded || historyFailed || quote?.status === "pending" || !flight.current.enter()) return;
+    if (!intention || !loaded || historyFailed || quote?.status === "pending" || (quote?.status === "failed" && !!(quote.candidateTxHash || quote.txHash)) || !flight.current.enter()) return;
     setBusy(true); setStatus("");
     try {
       const active = await hostNetwork();
@@ -137,7 +137,7 @@ export function PaymentPanel({ dropId, intention, onFulfilled }: { dropId: strin
         </label>
         <Button variant="outline" className="w-full" disabled={busy || now < retryUntil || (hash.length > 0 && !/^[a-f0-9]{64}$/i.test(hash))} onClick={() => check()}><RefreshCw />{now < retryUntil ? `Check again in ${Math.ceil((retryUntil - now) / 1000)}s` : "Check payment status"}</Button>
         {quote.status === "pending" && !hash && !quote.canRelease && quote.releaseAfterHeight && quote.headHeight !== undefined && quote.releaseAfterHeight > quote.headHeight && <p className="text-xs text-muted-foreground">If no payment appears, you can release this purchase after testnet block {quote.releaseAfterHeight.toLocaleString()} (about {Math.ceil((quote.releaseAfterHeight - quote.headHeight) / 60)} min). Until then the wallet could still deliver it.</p>}
-        {quote.status === "pending" && !hash && quote.canRelease && <Button variant="outline" className="w-full" disabled={busy} onClick={release}>Release this purchase</Button>}
+        {quote.status === "pending" && !hash && quote.canRelease && <Button variant="outline" className="w-full" disabled={busy} onClick={release}>{quote.submissionOutcome === 'cancelled' || quote.submissionOutcome === 'rejected' ? 'Close this purchase and try again' : 'Release this purchase'}</Button>}
       </>}
     </>}
     {status && <p role="status" className="text-xs text-muted-foreground">{status}</p>}

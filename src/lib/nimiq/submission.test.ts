@@ -33,3 +33,17 @@ describe('unresolved purchase release', () => {
     expect(canReleaseUnmatched({ ...base, now: Date.parse('2026-11-08T03:50:00Z') })).toBe(false);
   });
 });
+import { canReleaseUnmatched as canClose } from "./submission";
+describe("evidence-based closing", () => {
+  const base = { headHeight: 100, quoteHeight: 100, validityWindow: 7200, expiresAt: new Date(Date.now() + 60_000).toISOString(), now: Date.now(), historyComplete: true, matchingTransfers: 0, hasEvidence: false };
+  it("lets an explicitly cancelled purchase close right away when history holds no match", () => { expect(canClose({ ...base, cancelled: true })).toBe(true); });
+  it("never closes a cancelled purchase with a hash, a matching transfer or incomplete history", () => {
+    expect(canClose({ ...base, cancelled: true, hasEvidence: true })).toBe(false);
+    expect(canClose({ ...base, cancelled: true, matchingTransfers: 1 })).toBe(false);
+    expect(canClose({ ...base, cancelled: true, historyComplete: false })).toBe(false);
+  });
+  it("does not close an unknown outcome just because time passed or lookup was empty", () => {
+    expect(canClose({ ...base, expiresAt: new Date(Date.now() - 1).toISOString(), now: Date.now() + 1000 })).toBe(false);
+    expect(canClose({ ...base, expiresAt: new Date(Date.now() - 1).toISOString(), headHeight: 100 + 14_400, now: Date.now() + 1000 })).toBe(true);
+  });
+});

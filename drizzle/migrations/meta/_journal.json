@@ -127,6 +127,13 @@
       "when": 1794336797275,
       "tag": "0017_mainnet_hub_payout_approval",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1794337210155,
+      "tag": "0018_evidence_based_purchase_recovery",
+      "breakpoints": true
     }
   ]
 }

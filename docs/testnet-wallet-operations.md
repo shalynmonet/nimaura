@@ -59,3 +59,16 @@ A transfer sent before the claim, with a different validity height, without the 
 https://www.nimiq.com/developers/rpc/open-servers lists **Nimiq Watch Testnet**, maintained by **sisou**. It is community-operated, not Nimiq-operated, with no production uptime guarantee. Confirm endpoint network, history/index coverage, method support and operator trust before configuration; no endpoint is installed by this task.
 
 Alternatively operate an Albatross testnet history node from the official https://github.com/nimiq/core-rs-albatross implementation behind an authenticated HTTPS gateway under your control. Ownership comes from your hosting and gateway control; official source provenance alone does not establish ownership of a third-party endpoint.
+## Unresolved purchase recovery (both networks)
+
+A purchase closes without a collectible only when the evidence supports it:
+- **Wallet cancelled/rejected, no hash:** the collector can tap "Close this purchase and try again" once complete receiving history shows no matching transfer.
+- **Unknown outcome / timeout, no hash:** stays locked until the quote has expired, the chain head is two validity windows past the quote height (no acceptable signature can still be included), and complete history shows no matching transfer.
+- **Any hash or candidate hash:** never closes; it is only verified.
+- **Late payment after closing:** if a hash is later reported or discovered, the closed purchase is verified with finality and fulfilled exactly once (one collectible, one 50% payout). The same hash can never pay for two purchases.
+
+Admin procedure when a purchase stays unresolved (history incomplete, ambiguous candidates, or a hash that never verifies):
+1. Look up the quote: amount, sender, recipient, quote height, submission outcome, candidate hash.
+2. Ask the collector for the transaction hash from their wallet history; enter it in the purchase screen's hash check (verification only, never sends).
+3. Check the receiving address history in a block explorer for transfers of the exact amount after the quote time.
+4. If a verified transfer exists, the normal check fulfills it. If none exists and the chain is past two validity windows, the collector's Release button becomes available. Never mark a quote paid or issue a collectible by hand.

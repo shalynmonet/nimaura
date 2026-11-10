@@ -11,7 +11,7 @@ import type { Quote } from "./index";
 import type { Database } from "@/integrations/supabase/types";
 
 
-type Net = "mainnet" | "testnet";
+export type Net = "mainnet" | "testnet";
 const P = (n: Net) => (n === "mainnet" ? "NIMIQ_MAINNET_" : "NIMIQ_TESTNET_");
 const paymentsEnabled = (n: Net) => process.env[P(n) + "PAYMENTS_ENABLED"] === "true";
 const rpcUrl = (n: Net) => process.env[P(n) + "RPC_URL"];
@@ -26,7 +26,10 @@ const networkInput = z.object({ network: z.enum(["mainnet", "testnet"]) });
 export const getPaymentState = createServerFn({ method: "POST" }).middleware([requireSupabaseAuth]).inputValidator(networkInput).handler(async ({ data, context }) => {
   const { data: quotes, error } = await context.supabase.from("nimiq_payment_quotes").select("*").eq("user_id", context.userId).eq("network", data.network).in("status", ["quoted", "pending", "verified", "fulfilled"]).order("created_at", { ascending: false }).limit(1);
   if (error) throw new Error("Payment history unavailable.");
-  return quotes?.[0] ? dto(quotes[0]) : null;
+  // A closed purchase that later received a wallet hash is surfaced for verification-only recovery.
+  const { data: late } = await context.supabase.from("nimiq_payment_quotes").select("*").eq("user_id", context.userId).eq("network", data.network).eq("status", "failed").is("manifestation_id", null).not("candidate_tx_hash", "is", null).order("created_at", { ascending: false }).limit(1);
+  const pick = [quotes?.[0], late?.[0]].filter((x): x is QuoteRow => !!x).sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at))[0];
+  return pick ? dto(pick) : null;
 });
 export const createPaymentQuote = createServerFn({ method: "POST" }).middleware([requireSupabaseAuth]).inputValidator(z.object({ network: z.enum(["mainnet", "testnet"]), address: z.string().transform(normalizeAddress).refine(isValidNimiqAddress), dropId: z.string().uuid(), intention: z.enum(INTENTIONS) })).handler(async ({ data, context }) => {
   // Payments stay disabled until the creator explicitly configures a receiving wallet,
@@ -82,6 +85,7 @@ export const checkPayment = createServerFn({ method: "POST" }).middleware([requi
   const net = asNet(q.network);
   if (!paymentsEnabled(net)) throw new Error("Payments on this network are disabled.");
   if (q.status === "fulfilled") return dto(q);
+  if (q.status === "failed" && !q.manifestation_id && (q.tx_hash || q.candidate_tx_hash || data.txHash)) return recoverLatePayment(q, net, context.userId, data.txHash);
   if (q.status !== "pending") return dto(q);
   let hash = q.tx_hash ?? q.candidate_tx_hash ?? data.txHash?.toLowerCase();
   if (q.tx_hash && data.txHash && q.tx_hash !== data.txHash.toLowerCase()) throw new Error("A different transaction is assigned. Reconciliation required.");
@@ -97,7 +101,7 @@ export const checkPayment = createServerFn({ method: "POST" }).middleware([requi
       const candidates = rows.filter(tx => tx.to === q.recipient && tx.value === q.amount_luna && tx.networkId === NETWORK_ID[net] && tx.executionResult && tx.timestamp !== undefined && tx.timestamp >= Date.parse(q.created_at) && tx.timestamp <= Date.parse(q.expires_at));
       if (rows.length === 100 || candidates.length > 1) return { ...dto(q), retryAfterMs: 60_000, submissionDetail: 'History is incomplete or matching candidates are ambiguous. This purchase remains unresolved.' };
       if (!candidates[0]) {
-        const release = net === "mainnet" ? { canRelease: false, lateMatch: false, headHeight: q.validity_start_height, releaseAfterHeight: null } : await releaseStatus(service, q, rows);
+        const release = await releaseStatus(service, q, rows);
         return { ...dto(q), retryAfterMs: release.canRelease ? 300_000 : 60_000, ...release, submissionDetail: release.canRelease ? 'The payment window has closed and no matching transfer reached the receiving wallet. You can release this purchase.' : release.lateMatch ? 'A transfer matching this amount arrived outside the quote window. Reconciliation required; do not pay again.' : 'No candidate in the latest receiving history yet. This does not prove no broadcast or no charge.' };
       }
       hash = candidates[0].hash;
@@ -124,26 +128,49 @@ export const checkPayment = createServerFn({ method: "POST" }).middleware([requi
   return { ...dto(q), txHash: hash, status: "fulfilled", manifestationId: result.data };
 });
 type HistoryRow = z.infer<typeof transactionSchema>;
+/** A closed purchase stays recoverable: a finalized, fully verified payment is pinned and fulfilled exactly once. */
+async function recoverLatePayment(q: QuoteRow, net: Net, userId: string, supplied?: string) {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const hash = (q.tx_hash ?? q.candidate_tx_hash ?? supplied ?? "").toLowerCase();
+  if (q.tx_hash && supplied && q.tx_hash !== supplied.toLowerCase()) throw new Error("A different transaction is assigned. Reconciliation required.");
+  const url = rpcUrl(net);
+  if (!url) throw new Error("Trusted verification is not configured.");
+  const service: TrustedRpc = { url, authorization: rpcAuth(net), coordination: rpcCoordination(supabaseAdmin) };
+  try {
+    const expected = { txHash: hash, sender: q.sender, recipient: q.recipient, amountLuna: q.amount_luna, network: net, validityStartHeight: q.validity_start_height, createdAt: q.created_at, expiresAt: q.expires_at };
+    if (!await verifyTransfer(service, expected, undefined, true)) return { ...dto(q), retryAfterMs: 10_000, submissionDetail: "Checking this late payment for finality. Do not pay again." };
+  } catch (error) {
+    if (error instanceof RpcPending) return { ...dto(q), retryAfterMs: error.retryAfterMs };
+    throw error;
+  }
+  const pinned = await supabaseAdmin.rpc("pin_late_payment", { _id: q.id, _user_id: userId, _hash: hash });
+  if (pinned.error) throw new Error("Late payment needs reconciliation. Do not pay again.");
+  const result = await supabaseAdmin.rpc(net === "mainnet" ? "fulfill_mainnet_payment" : "fulfill_testnet_payment", { _id: q.id, _user_id: userId, _hash: hash });
+  if (result.error) throw new Error("Verified late payment awaits reconciliation. Do not pay again.");
+  return { ...dto(q), txHash: hash, status: "fulfilled", manifestationId: result.data };
+}
 async function releaseStatus(service: TrustedRpc, q: QuoteRow, rows: HistoryRow[]) {
   const head = await networkHead(service, asNet(q.network));
   const policy = await rpc(service, 'getPolicyConstants', [], policySchema);
   // Any transfer of this exact amount after quote creation blocks release, even outside the window.
   const late = rows.filter(tx => tx.to === q.recipient && tx.value === q.amount_luna && (tx.timestamp === undefined || tx.timestamp >= Date.parse(q.created_at)));
   const window = policy.transactionValidityWindow;
-  const canRelease = canReleaseUnmatched({ headHeight: head.number, quoteHeight: q.validity_start_height, validityWindow: window, expiresAt: q.expires_at, now: Date.now(), historyComplete: rows.length < 100, matchingTransfers: late.length, hasEvidence: !!(q.tx_hash ?? q.candidate_tx_hash) });
+  const canRelease = canReleaseUnmatched({ headHeight: head.number, quoteHeight: q.validity_start_height, validityWindow: window, expiresAt: q.expires_at, now: Date.now(), historyComplete: rows.length < 100, matchingTransfers: late.length, hasEvidence: !!(q.tx_hash ?? q.candidate_tx_hash), cancelled: q.submission_outcome === 'cancelled' || q.submission_outcome === 'rejected' });
   return { canRelease, lateMatch: late.length > 0, headHeight: head.number, releaseAfterHeight: window ? releaseAfterHeight(q.validity_start_height, window) : null };
 }
 /** Collector-initiated release of a purchase proven unpayable; re-proves every condition server-side. */
 export const releaseUnmatchedPurchase = createServerFn({ method: "POST" }).middleware([requireSupabaseAuth]).inputValidator(z.object({ id: z.string().uuid() })).handler(async ({ data, context }) => {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const { data: q } = await supabaseAdmin.from("nimiq_payment_quotes").select("*").eq("id", data.id).eq("user_id", context.userId).single();
-  if (!q || q.network !== "testnet") throw new Error("Payment not found.");
+  if (!q) throw new Error("Payment not found.");
+  const net = asNet(q.network);
   if (q.status !== "pending" || q.tx_hash || q.candidate_tx_hash) throw new Error("This purchase has payment evidence or is not unresolved. It cannot be released.");
-  const url = rpcUrl("testnet");
+  const cancelled = q.submission_outcome === "cancelled" || q.submission_outcome === "rejected";
+  const url = rpcUrl(net);
   if (!url) throw new Error("Trusted verification is not configured.");
-  const service: TrustedRpc = { url, authorization: rpcAuth("testnet"), coordination: rpcCoordination(supabaseAdmin) };
+  const service: TrustedRpc = { url, authorization: rpcAuth(net), coordination: rpcCoordination(supabaseAdmin) };
   try {
-    await networkHead(service, 'testnet');
+    await networkHead(service, net);
     const rows = await rpc(service, 'getTransactionsByAddress', [q.recipient, 100, null], z.array(transactionSchema));
     const release = await releaseStatus(service, q, rows);
     if (!release.canRelease) throw new Error(release.lateMatch ? "A matching transfer exists. Reconciliation required; do not pay again." : "The wallet could still deliver this payment. Release is not safe yet.");
@@ -151,7 +178,7 @@ export const releaseUnmatchedPurchase = createServerFn({ method: "POST" }).middl
     if (error instanceof RpcPending) throw new Error(`Verification service is busy. Try again in ${Math.ceil(error.retryAfterMs / 1000)}s.`);
     throw error;
   }
-  const result = await supabaseAdmin.rpc("release_unmatched_collector_purchase", { _id: q.id, _user_id: context.userId });
+  const result = await supabaseAdmin.rpc(cancelled ? "close_cancelled_collector_purchase" : "release_unmatched_collector_purchase", { _id: q.id, _user_id: context.userId });
   if (result.error) throw new Error("Could not release this purchase. It remains locked.");
   return true;
 });
