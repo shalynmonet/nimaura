@@ -3,14 +3,14 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { RefreshCw, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { listPayouts, reconcilePayout } from "@/lib/nimiq/payouts.functions";
+import { listPayouts, reconcilePayout, reopenPayout } from "@/lib/nimiq/payouts.functions";
 import { walletError } from "@/lib/nimiq";
 import { beginHubOwnership, beginHubPayout } from '@/lib/nimiq/hub.functions';
 import { openHub, requireHubBrowser } from '@/lib/nimiq/hub';
 import { useDeliveryFeedback } from '@/lib/nimiq/use-delivery-feedback';
 
 export function TestnetPayoutQueue() {
-  const list = useServerFn(listPayouts), approve = useServerFn(beginHubPayout), reconcile = useServerFn(reconcilePayout);
+  const list = useServerFn(listPayouts), approve = useServerFn(beginHubPayout), reconcile = useServerFn(reconcilePayout), reopen = useServerFn(reopenPayout);
   const treasuryProof = useServerFn(beginHubOwnership);
   const qc = useQueryClient();
   const queue = useQuery({ queryKey: ["testnet-payout-queue"], queryFn: () => list() });
@@ -31,6 +31,15 @@ export function TestnetPayoutQueue() {
       const result = await reconcile({ data: { id, ...(hash ? { txHash: hash } : {}) } });
       setMessage(feedback(result));
     } catch (error) { setMessage(await walletError(error)); }
+    finally { setBusy(false); await qc.invalidateQueries({ queryKey: ["testnet-payout-queue"] }); }
+  }
+  async function reopenClaim(id: string) {
+    if (busy) return;
+    setBusy(true); setMessage("");
+    try {
+      const r = await reopen({ data: { id } });
+      setMessage(r.status === "queued" ? "No transfer was signed or found on testnet. This payout is queued again; approve it when ready." : feedback(r));
+    } catch (e) { setMessage(await walletError(e)); }
     finally { setBusy(false); await qc.invalidateQueries({ queryKey: ["testnet-payout-queue"] }); }
   }
   async function proveTreasury(id: string, address: string) {
@@ -58,6 +67,7 @@ export function TestnetPayoutQueue() {
           <input aria-label={`Transaction hash ${p.reference}`} value={hashes[p.id] ?? ""} onChange={(e) => setHashes((old) => ({ ...old, [p.id]: e.target.value }))} className="mt-1 w-full rounded-sm border border-input bg-card p-2 font-mono text-xs" />
         </label>
         <Button variant="outline" disabled={busy || remainingSeconds > 0 || (!!hashes[p.id] && !/^[a-f0-9]{64}$/i.test(hashes[p.id] ?? ""))} onClick={() => act(p.id, false)}><RefreshCw />{remainingSeconds > 0 ? `Check again in ${remainingSeconds}s` : 'Reconcile delivery'}</Button>
+        {!p.tx_hash && p.expires_at && Date.parse(p.expires_at) <= Date.now() && <Button variant="outline" disabled={busy} onClick={() => reopenClaim(p.id)}>Reopen unsigned claim</Button>}
       </>}
     </li>)}</ul>
     {message && <p role="status" className="text-sm text-muted-foreground">{message}</p>}

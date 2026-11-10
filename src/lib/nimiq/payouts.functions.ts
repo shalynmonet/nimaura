@@ -64,3 +64,22 @@ export const reconcilePayout = createServerFn({ method: "POST" }).middleware([re
   if (completed.error) throw new Error("Payout reconciliation changed. Reload; never resend.");
   return { status: "paid" };
 });
+// Reopens only an expired claim with no signed bytes, no used wallet result and no on-chain transfer for its reference.
+export const reopenPayout = createServerFn({ method: "POST" }).middleware([requireSupabaseAuth]).inputValidator(input).handler(async ({ data, context }) => {
+  const role = await context.supabase.rpc("has_role", { _user_id: context.userId, _role: "admin" });
+  if (role.error || role.data !== true) throw new Error("Admin required.");
+  if (process.env["NIMIQ_TESTNET_MANUAL_PAYOUTS_ENABLED"] !== "true") throw new Error("Manual testnet payouts are disabled.");
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const p = (await supabaseAdmin.from("testnet_payouts").select("*").eq("id", data.id).single()).data;
+  if (!p || p.network !== "testnet" || p.status !== "uncertain" || p.tx_hash || !p.expires_at || Date.parse(p.expires_at) > Date.now()) throw new Error("Only an expired, unsigned claim can be reopened.");
+  const url = process.env["NIMIQ_TESTNET_RPC_URL"];
+  if (!url) throw new Error("Trusted testnet RPC required.");
+  const service: TrustedRpc = { url, coordination: rpcCoordination(supabaseAdmin), authorization: process.env["NIMIQ_TESTNET_RPC_AUTHORIZATION"] };
+  let hashes: string[];
+  try { hashes = await findPayoutHashes(service, p.treasury_sender, p.reference); }
+  catch (error) { if (error instanceof RpcPending) return { status: "uncertain" as const, retryAfterMs: error.retryAfterMs }; throw error; }
+  if (hashes.length) throw new Error("A transfer with this reference exists. Reconcile instead; never reopen.");
+  const reopened = await supabaseAdmin.rpc("reopen_unbroadcast_testnet_payout", { _id: p.id, _operator: context.userId });
+  if (reopened.error) throw new Error("This claim cannot be reopened safely. Reconcile; never resend.");
+  return { status: "queued" as const };
+});

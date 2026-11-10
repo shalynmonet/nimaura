@@ -880,6 +880,10 @@ export type Database = {
         Args: { _id: string; _user_id: string }
         Returns: undefined
       }
+      reopen_unbroadcast_testnet_payout: {
+        Args: { _id: string; _operator: string }
+        Returns: boolean
+      }
       reserve_nimiq_rpc_slot: {
         Args: { _cost: number; _key: string }
         Returns: string

@@ -1,12 +1,14 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { lazy, Suspense, useEffect, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useState } from "react";
 const LivingSculpture = lazy(() => import("@/components/SeraphStudyScene"));
 import { supabase } from "@/integrations/supabase/client";
 import { AppShell } from "@/components/AppShell";
 import { WovenSeraph } from "@/components/Entity";
 import { buildManifestation, savedRendererVersion, savedSculptureVersion, INTENTION_COPY, type Intention } from "@/lib/manifest";
-import { startDrone, stopDrone } from "@/lib/sound";
+import { startAmbient, stopAmbient } from "@/lib/sound";
+import { Meditation } from "@/components/Meditation";
+import { cueStyle, type Cue } from "@/lib/meditation";
 import { encounterWriting } from "@/lib/encounter-writing";
 
 export const Route = createFileRoute("/_authenticated/vault/$id")({
@@ -29,7 +31,11 @@ function Encounter() {
   const { reveal } = Route.useSearch();
   const [phase, setPhase] = useState(reveal ? 0 : 3);
   const [sound, setSound] = useState(false);
-  const [medStep, setMedStep] = useState<number | null>(null);
+  const [meditating, setMeditating] = useState(false);
+  const [cue, setCue] = useState<Cue | null>(null);
+  const [reduced, setReduced] = useState(false);
+  const onCue = useCallback((c: Cue | null) => setCue(c), []);
+  useEffect(() => { const mq = window.matchMedia("(prefers-reduced-motion: reduce)"); setReduced(mq.matches); const f = () => setReduced(mq.matches); mq.addEventListener("change", f); return () => mq.removeEventListener("change", f); }, []);
 
   const q = useQuery({
     queryKey: ["manifestation", id],
@@ -59,15 +65,7 @@ function Encounter() {
     return () => t.forEach(clearTimeout);
   }, [reveal]);
 
-  useEffect(() => () => stopDrone(), []);
-
-  useEffect(() => {
-    if (medStep === null || !q.data) return;
-    const steps = (q.data.entities?.meditation as string[]) ?? [];
-    if (medStep >= steps.length) return;
-    const t = setTimeout(() => setMedStep(medStep + 1), 7000);
-    return () => clearTimeout(t);
-  }, [medStep, q.data]);
+  useEffect(() => () => stopAmbient(), []);
 
   if (q.isLoading) return <AppShell><div className="mt-16 aspect-[4/5] animate-pulse rounded bg-muted" /></AppShell>;
   if (!q.data || q.error) return <AppShell><p className="mt-16 text-center text-muted-foreground">This manifestation is not in your Vault.</p></AppShell>;
@@ -79,12 +77,11 @@ function Encounter() {
   const e = m.entities;
   if (!e) return <AppShell><p className="mt-16 text-muted-foreground">This entity could not be opened.</p></AppShell>;
   const reflection = (e.reflections as Record<string, string>)[intention];
-  const meditation = (e.meditation as string[]) ?? [];
   const writing = encounterWriting(Number(m.seed), intention, m.config, e.name);
 
   function toggleSound() {
-    if (sound) stopDrone();
-    else startDrone(Number(m.seed));
+    if (sound) stopAmbient();
+    else startAmbient(Number(m.seed), intention);
     setSound(!sound);
   }
 
@@ -101,12 +98,15 @@ function Encounter() {
           </svg>
         )}
         <div className={phase >= 2 ? "animate-manifest" : "opacity-0"}>
+          <div style={{ ...cueStyle(cue, reduced), transition: "transform 4s ease-in-out, filter 4s ease-in-out" }}>
           {savedSculptureVersion(m.config) ? (
             <Suspense fallback={<WovenSeraph config={config} className="w-full" />}>
               <LivingSculpture seed={Number(m.seed)} path={intention} />
               <p className="mt-2 text-center text-xs text-muted-foreground">Tap to speed up (up to 5×) · hold to slow back down · drag a gold ring node to turn its ring · drag elsewhere to shift the view</p>
             </Suspense>
           ) : <WovenSeraph config={config} className="w-full" />}
+          </div>
+          {meditating && <div className="sticky bottom-2 z-10 mt-3"><Meditation path={intention} onCue={onCue} onExit={() => setMeditating(false)} /></div>}
         </div>
       </div>
 
@@ -122,19 +122,11 @@ function Encounter() {
           <button onClick={toggleSound} aria-pressed={sound} className="rounded-sm border px-4 py-2 text-xs uppercase tracking-[0.2em] text-ivory hover:border-gold">
             {sound ? "Silence" : "Listen"}
           </button>
-          <button onClick={() => setMedStep(medStep === null ? 0 : null)} className="rounded-sm border px-4 py-2 text-xs uppercase tracking-[0.2em] text-ivory hover:border-gold">
-            {medStep === null ? "Meditate" : "End meditation"}
+          <button onClick={() => { setMeditating(!meditating); if (!meditating) window.scrollTo({ top: 0, behavior: reduced ? "auto" : "smooth" }); }} className="rounded-sm border px-4 py-2 text-xs uppercase tracking-[0.2em] text-ivory hover:border-gold">
+            {meditating ? "End meditation" : "Meditate"}
           </button>
         </div>
 
-        {medStep !== null && (
-          <div className="mt-6 flex flex-col items-center rounded-sm border bg-card p-6 text-center" aria-live="polite">
-            <div className="animate-breathe h-16 w-16 rounded-full border border-gold" />
-            <p className="mt-4 font-display text-xl italic text-ivory">
-              {medStep < meditation.length ? meditation[medStep] : "The eye closes. It keeps watching for you."}
-            </p>
-          </div>
-        )}
 
         {writing ? (
           <div className="mt-8 space-y-7">
