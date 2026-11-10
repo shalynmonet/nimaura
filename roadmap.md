@@ -1,5 +1,5 @@
 # NIMAURA roadmap
-- [ ] Manual TESTNET demo: published queue/Reserve/admin and trusted history checked; only manual payout configuration enabled; 38 focused tests pass; existing 58ea448c payout selected without claiming or sending. Release requested; device ownership proof, transfer approval, and finalized delivery await SHA-I.
+- [x] Manual TESTNET demo: SHA-I verified treasury and approved bc0b2bdc payout; existing 6238ab87…dd0c8 transfer reconciled through normal authenticated verification to paid, 194931774 Luna delivered; no resend, 9 collectibles unchanged. Queue/Hub feedback now exposes paced waiting and queue shows saved hashes; not published.
 - [x] Stage 1: isolated `/entity-study` Seraph/Choir/Foldkeeper four-path preview, 20 focused tests and signed-in motion/phone checks; read-only audit: first eligible drop 9, Nov 9 00:00–Nov 10 00:00 UTC, no protected future drops; unchanged hosted assignments, not published. Native device review pending.
 - [ ] Stage 2: remaining four entities, trusted version snapshots, curated seven-identity rotation and rollover checks (blocked on stage-one visual approval).
 - [x] Fifth purchase diagnosed: pending/null hash, no matching recipient-history candidate; original wallet outcome unknowable from old logs. Normal preview checker confirms unresolved, no payment requested/published.
@@ -30,7 +30,7 @@
 - [x] Testnet: admin-only manual payout queue, destination snapshots, atomic claims and reference reconciliation.
 - [x] Testnet: verify public UI, database rules and tests.
 - [x] Testnet: actual user device payment reconciled through published verification, issued one labeled Vault collectible and one pending allocation.
-- [ ] Testnet: actual Reserve delivery awaits explicit manual payout activation and operator wallet approval; manual payouts remain disabled.
+- [x] Testnet: manual payout enabled by owner November 10; owner-approved Reserve delivery finalized; mainnet and automatic payouts remain disabled.
 - [x] Assess separate official testnet web Wallet signing; Pay cannot select these wallets. Document minimal Hub path and strict manual-hash reconciliation.
 - [x] Implement browser-only testnet Hub Reserve/treasury signing, durable redirect state, private signed-byte storage and single broadcast.
 - [x] Verify Hub negative signature/intent/state/replay tests and existing regression checks.

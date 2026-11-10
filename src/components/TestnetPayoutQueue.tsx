@@ -7,6 +7,7 @@ import { listPayouts, reconcilePayout } from "@/lib/nimiq/payouts.functions";
 import { walletError } from "@/lib/nimiq";
 import { beginHubOwnership, beginHubPayout } from '@/lib/nimiq/hub.functions';
 import { openHub, requireHubBrowser } from '@/lib/nimiq/hub';
+import { useDeliveryFeedback } from '@/lib/nimiq/use-delivery-feedback';
 
 export function TestnetPayoutQueue() {
   const list = useServerFn(listPayouts), approve = useServerFn(beginHubPayout), reconcile = useServerFn(reconcilePayout);
@@ -15,7 +16,9 @@ export function TestnetPayoutQueue() {
   const queue = useQuery({ queryKey: ["testnet-payout-queue"], queryFn: () => list() });
   const [busy, setBusy] = useState(false), [message, setMessage] = useState("");
   const [hashes, setHashes] = useState<Record<string,string>>({});
+  const { feedback, remainingSeconds } = useDeliveryFeedback();
   async function act(id: string, send: boolean) {
+    if (busy || (!send && remainingSeconds > 0)) return;
     setBusy(true); setMessage("");
     try {
       let hash: string | undefined = hashes[id] || undefined;
@@ -26,7 +29,7 @@ export function TestnetPayoutQueue() {
         return;
       }
       const result = await reconcile({ data: { id, ...(hash ? { txHash: hash } : {}) } });
-      setMessage(result.status === "paid" ? "Finalized testnet delivery confirmed." : "Delivery unresolved. Reconcile again; do not resend.");
+      setMessage(feedback(result));
     } catch (error) { setMessage(await walletError(error)); }
     finally { setBusy(false); await qc.invalidateQueries({ queryKey: ["testnet-payout-queue"] }); }
   }
@@ -45,6 +48,7 @@ export function TestnetPayoutQueue() {
       <p className="break-all font-mono text-xs text-muted-foreground">From: {p.treasury_sender}</p>
       <p className="break-all font-mono text-xs text-muted-foreground">To: {p.reserve_destination}</p>
       <p className="break-all font-mono text-xs text-muted-foreground">{p.reference}</p>
+      {p.tx_hash && <p className="break-all font-mono text-xs text-muted-foreground">Saved transaction: {p.tx_hash}</p>}
       {p.status === "queued" && <div className="flex flex-wrap gap-2">
         <Button variant="outline" disabled={busy} onClick={() => proveTreasury(p.id, p.treasury_sender)}>Verify treasury · browser only</Button>
         <Button variant="outline" disabled={busy} onClick={() => act(p.id, true)}><Send />Approve payout · browser only</Button>
@@ -53,7 +57,7 @@ export function TestnetPayoutQueue() {
         <label className="block text-xs text-muted-foreground">Known transaction hash (optional)
           <input aria-label={`Transaction hash ${p.reference}`} value={hashes[p.id] ?? ""} onChange={(e) => setHashes((old) => ({ ...old, [p.id]: e.target.value }))} className="mt-1 w-full rounded-sm border border-input bg-card p-2 font-mono text-xs" />
         </label>
-        <Button variant="outline" disabled={busy || (!!hashes[p.id] && !/^[a-f0-9]{64}$/i.test(hashes[p.id] ?? ""))} onClick={() => act(p.id, false)}><RefreshCw />Reconcile delivery</Button>
+        <Button variant="outline" disabled={busy || remainingSeconds > 0 || (!!hashes[p.id] && !/^[a-f0-9]{64}$/i.test(hashes[p.id] ?? ""))} onClick={() => act(p.id, false)}><RefreshCw />{remainingSeconds > 0 ? `Check again in ${remainingSeconds}s` : 'Reconcile delivery'}</Button>
       </>}
     </li>)}</ul>
     {message && <p role="status" className="text-sm text-muted-foreground">{message}</p>}
