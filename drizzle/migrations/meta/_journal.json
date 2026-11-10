@@ -106,6 +106,13 @@
       "when": 1794328820413,
       "tag": "0014_reopen_unbroadcast_testnet_payout",
       "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1794329629410,
+      "tag": "0015_migration",
+      "breakpoints": true
     }
   ]
 }
