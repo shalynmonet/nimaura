@@ -14,6 +14,80 @@ export type Database = {
   }
   public: {
     Tables: {
+      collective_contributions: {
+        Row: {
+          created_at: string
+          deployment: string
+          drop_id: string
+          id: string
+          manifestation_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          deployment?: string
+          drop_id: string
+          id?: string
+          manifestation_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          deployment?: string
+          drop_id?: string
+          id?: string
+          manifestation_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "collective_contributions_manifestation_id_fkey"
+            columns: ["manifestation_id"]
+            isOneToOne: true
+            referencedRelation: "manifestations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      collective_milestones: {
+        Row: {
+          deployment: string
+          designation: string
+          id: string
+          name: string
+          ordinal: number
+          reflection: string
+          symbolism: string
+          threshold: number
+          unlocked_at: string | null
+          veiled_hint: string
+        }
+        Insert: {
+          deployment?: string
+          designation: string
+          id?: string
+          name: string
+          ordinal: number
+          reflection: string
+          symbolism: string
+          threshold: number
+          unlocked_at?: string | null
+          veiled_hint: string
+        }
+        Update: {
+          deployment?: string
+          designation?: string
+          id?: string
+          name?: string
+          ordinal?: number
+          reflection?: string
+          symbolism?: string
+          threshold?: number
+          unlocked_at?: string | null
+          veiled_hint?: string
+        }
+        Relationships: []
+      }
       credit_redemptions: {
         Row: {
           created_at: string
@@ -763,6 +837,8 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      collective_count: { Args: { _manifestation: string }; Returns: undefined }
+      collective_state: { Args: { _deployment?: string }; Returns: Json }
       complete_testnet_payout: {
         Args: { _hash: string; _id: string; _operator: string; _token: string }
         Returns: string

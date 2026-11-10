@@ -44,6 +44,15 @@ function Encounter() {
     },
   });
 
+  const joined = useQuery({
+    queryKey: ["collective-joined", id],
+    enabled: reveal,
+    queryFn: async () => {
+      const { data } = await supabase.from("collective_contributions").select("id").eq("manifestation_id", id).maybeSingle();
+      return !!data;
+    },
+  });
+
   useEffect(() => {
     if (!reveal) return;
     const t = [setTimeout(() => setPhase(1), 300), setTimeout(() => setPhase(2), 2000), setTimeout(() => setPhase(3), 4200)];
@@ -156,6 +165,9 @@ function Encounter() {
             {m.source === "complimentary" ? "Complimentary credit" : m.source === "testnet" ? <span className="text-warning">TESTNET payment · Reserve allocation is not delivered savings</span> : m.source === "simulated" ? <span className="text-warning">Simulated payment (dev)</span> : "Paid"}
           </p>
         </div>
+        {reveal && joined.data && (
+          <p role="status" className="mt-6 text-center font-display text-sm italic text-gold">Your intention has joined the collective.</p>
+        )}
         <Link to="/vault" className="mt-6 block text-center text-sm text-gold">Return to Vault</Link>
       </section>
     </AppShell>

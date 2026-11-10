@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { AppShell, Countdown } from "@/components/AppShell";
 import { Seal } from "@/components/Seal";
+import { CollectivePreview } from "@/components/CollectiveSeal";
 import { currentDropQuery, profileQuery, sessionQuery } from "@/lib/queries";
 
 export const Route = createFileRoute("/")({
@@ -57,6 +58,7 @@ function Arrival() {
           </>
         )}
       </section>
+      <CollectivePreview />
     </AppShell>
   );
 }

@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthRouteImport } from './routes/auth'
+import { Route as CollectiveRouteImport } from './routes/collective'
 import { Route as HubReturnRouteImport } from './routes/hub-return'
 import { Route as AuthenticatedAccountRouteImport } from './routes/_authenticated/account'
 import { Route as AuthenticatedArtStudyRouteImport } from './routes/_authenticated/art-study'
@@ -33,6 +34,11 @@ const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
   path: '/auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CollectiveRoute = CollectiveRouteImport.update({
+  id: '/collective',
+  path: '/collective',
   getParentRoute: () => rootRouteImport,
 } as any)
 const HubReturnRoute = HubReturnRouteImport.update({
@@ -80,6 +86,7 @@ const AuthenticatedVaultIdRoute = AuthenticatedVaultIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/collective': typeof CollectiveRoute
   '/hub-return': typeof HubReturnRoute
   '/account': typeof AuthenticatedAccountRoute
   '/art-study': typeof AuthenticatedArtStudyRoute
@@ -92,6 +99,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/collective': typeof CollectiveRoute
   '/hub-return': typeof HubReturnRoute
   '/account': typeof AuthenticatedAccountRoute
   '/art-study': typeof AuthenticatedArtStudyRoute
@@ -106,6 +114,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
+  '/collective': typeof CollectiveRoute
   '/hub-return': typeof HubReturnRoute
   '/_authenticated/account': typeof AuthenticatedAccountRoute
   '/_authenticated/art-study': typeof AuthenticatedArtStudyRoute
@@ -120,6 +129,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/auth'
+    | '/collective'
     | '/hub-return'
     | '/account'
     | '/art-study'
@@ -132,6 +142,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/auth'
+    | '/collective'
     | '/hub-return'
     | '/account'
     | '/art-study'
@@ -145,6 +156,7 @@ export interface FileRouteTypes {
     | '/'
     | '/_authenticated'
     | '/auth'
+    | '/collective'
     | '/hub-return'
     | '/_authenticated/account'
     | '/_authenticated/art-study'
@@ -159,6 +171,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
+  CollectiveRoute: typeof CollectiveRoute
   HubReturnRoute: typeof HubReturnRoute
 }
 
@@ -183,6 +196,13 @@ declare module '@tanstack/react-router' {
       path: '/auth'
       fullPath: '/auth'
       preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/collective': {
+      id: '/collective'
+      path: '/collective'
+      fullPath: '/collective'
+      preLoaderRoute: typeof CollectiveRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/hub-return': {
@@ -271,6 +291,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
+  CollectiveRoute: CollectiveRoute,
   HubReturnRoute: HubReturnRoute,
 }
 export const routeTree = rootRouteImport

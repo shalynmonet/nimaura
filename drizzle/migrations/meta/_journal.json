@@ -92,6 +92,13 @@
       "when": 1794110835838,
       "tag": "0012_release_expired_unmatched_collector_purchase",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1794272108407,
+      "tag": "0013_collective_seal",
+      "breakpoints": true
     }
   ]
 }
