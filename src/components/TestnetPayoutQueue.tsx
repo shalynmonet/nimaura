@@ -28,7 +28,14 @@ export function TestnetPayoutQueue() {
         await openHub(intent);
         return;
       }
-      const result = await reconcile({ data: { id, ...(hash ? { txHash: hash } : {}) } });
+      // Finality checks are paced: keep checking this same transfer automatically (never sends).
+      let result = await reconcile({ data: { id, ...(hash ? { txHash: hash } : {}) } });
+      for (let round = 1; result.status !== 'paid' && round <= 15; round++) {
+        const wait = ('retryAfterMs' in result && typeof result.retryAfterMs === 'number' ? result.retryAfterMs : 10_000);
+        setMessage(`Still confirming finality (step ${round} of up to 15). Checking again automatically — do not resend.`);
+        await new Promise((r) => setTimeout(r, Math.min(Math.max(wait, 3_000), 30_000)));
+        result = await reconcile({ data: { id, ...(hash ? { txHash: hash } : {}) } });
+      }
       setMessage(feedback(result));
     } catch (error) { setMessage(await walletError(error)); }
     finally { setBusy(false); await qc.invalidateQueries({ queryKey: ["testnet-payout-queue"] }); }
