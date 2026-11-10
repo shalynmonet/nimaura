@@ -6,7 +6,7 @@ const hash = "a".repeat(64);
 const expected = { txHash: hash, sender, recipient: sender, amountLuna: 100_000, network: "testnet" as const, validityStartHeight: 100, createdAt: "2026-11-08T00:00:00Z", expiresAt: "2026-11-08T00:05:00Z" };
 const service = { maxRequests: 100, requestCount: 0, nextAt: 0, url: "https://trusted.invalid/rpc" };
 let tx: Record<string, unknown>, consensus: boolean, network: number, inclusion: boolean, macroHeight: number, unstable: boolean, conflicting: boolean, badParent: boolean;
-let netIdMode: "ok" | "unsupported" | "down", txMode: "ok" | "notfound" | "error", rateLimited: number;
+let netIdMode: "ok" | "unsupported" | "down", txMode: "ok" | "notfound" | "error", rateLimited = 0;
 const blockHash = (height: number) => height.toString(16).padStart(64, "0");
 beforeEach(() => {
   vi.useFakeTimers({ shouldAdvanceTime: true });
