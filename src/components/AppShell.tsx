@@ -1,5 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { useEffect, useState, type ReactNode } from "react";
+import headerWeave from "@/assets/woven-header.png.asset.json";
 
 const NAV = [
   { to: "/", label: "Arrival", glyph: "◈" },
@@ -15,6 +16,9 @@ export function AppShell({ children }: { children: ReactNode }) {
         <Link to="/" className="font-display text-xl tracking-[0.4em] text-ivory">NIMAURA</Link>
         <span className="eyebrow text-[0.6rem] text-muted-foreground">Cycle III</span>
       </header>
+      <div aria-hidden="true" className="mx-auto mt-5 h-6 max-w-md overflow-hidden border-y border-gold/25">
+        <img src={headerWeave.url} alt="" className="h-full w-full object-cover opacity-60" />
+      </div>
       <main className="mx-auto max-w-md px-6 pb-28">{children}</main>
       <nav aria-label="Primary" className="fixed inset-x-0 bottom-0 z-50 border-t bg-background/90 backdrop-blur">
         <ul className="mx-auto flex max-w-md justify-around py-3">
