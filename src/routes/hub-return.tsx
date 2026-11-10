@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { useServerFn } from '@tanstack/react-start';
 import { Button } from '@/components/ui/button';
 import { AppShell } from '@/components/AppShell';
-import { recoverHubResponse, type HubResponse } from '@/lib/nimiq/hub';
+import { recoverHubResponse, pendingHubNetwork, type HubResponse } from '@/lib/nimiq/hub';
 import { completeHubResult, hubRecovery } from '@/lib/nimiq/hub.functions';
 import { reconcilePayout } from '@/lib/nimiq/payouts.functions';
 import { supabase } from '@/integrations/supabase/client';
@@ -29,22 +29,23 @@ function HubReturn() {
     try {
       const id = result?.id ?? sessionStorage.getItem('nimaura-hub-pending');
       if (!id) throw new Error('No pending wallet request in this browser.');
-      const state = await recover({ data: { id } });
+      const network = pendingHubNetwork();
+      const state = await recover({ data: { id, network } });
       if (!state.consumed) {
         if (state.expired || !result) throw new Error('Approval expired or missing. Any payout claim stays unresolved; do not resend.');
-        await complete({ data: result });
+        await complete({ data: { ...result, network } });
       }
       if (state.kind === 'payout' && state.payoutId) {
-        const outcome = await reconcile({ data: { id: state.payoutId } });
+        const outcome = await reconcile({ data: { id: state.payoutId, network } });
         setMessage(feedback(outcome));
-      } else setMessage('Testnet wallet ownership verified.');
+      } else setMessage(network === 'mainnet' ? 'Mainnet wallet ownership verified.' : 'Testnet wallet ownership verified.');
       sessionStorage.removeItem('nimaura-hub-result');
       setResult(null);
     } catch (e) { setMessage(e instanceof Error ? e.message : 'Approval unresolved.'); }
     finally { setBusy(false); }
   }
   return <AppShell><section className="mt-8 space-y-5">
-    <h1 className="font-display text-3xl text-ivory">Testnet wallet approval</h1>
+    <h1 className="font-display text-3xl text-ivory">Wallet approval</h1>
     <p role="status" className="text-sm text-muted-foreground break-words">{message}</p>
     {signedIn ? <Button variant="outline" disabled={busy || remainingSeconds > 0} onClick={confirm}>{remainingSeconds > 0 ? `Check again in ${remainingSeconds}s` : 'Confirm approval / check delivery'}</Button> : <Link to="/auth" search={{ redirect: '/hub-return' }} className="text-gold underline">Sign in to confirm approval</Link>}
     <p><Link to="/account" className="text-gold underline">Back to account</Link></p>

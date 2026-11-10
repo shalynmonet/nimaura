@@ -42,7 +42,7 @@ describe('Hub server signing/broadcast orchestration (mocked)', () => {
     await completeHubResult({ data: input });
     expect(m.accept.mock.invocationCallOrder[0]).toBeLessThan(m.broadcast.mock.invocationCallOrder[0] ?? 0);
     expect(m.broadcast).toHaveBeenCalledWith(expect.objectContaining({ url: 'https://trusted.invalid' }), 'sendRawTransaction', ['abcd'], expect.anything());
-    expect(m.verify).toHaveBeenCalledWith('abcd', input.hash, { sender: 'treasury', recipient: 'reserve', amountLuna: 50000, reference: 'NIMAURA:reference', validityStartHeight: 100 });
+    expect(m.verify).toHaveBeenCalledWith('abcd', input.hash, { sender: 'treasury', recipient: 'reserve', amountLuna: 50000, reference: 'NIMAURA:reference', validityStartHeight: 100, networkId: 5 });
   });
   it('unknown broadcast is uncertain; replay and recovery do not broadcast again', async () => {
     m.broadcast.mockRejectedValue(new Error('timeout after send'));

@@ -97,7 +97,7 @@ export const checkPayment = createServerFn({ method: "POST" }).middleware([requi
       const candidates = rows.filter(tx => tx.to === q.recipient && tx.value === q.amount_luna && tx.networkId === NETWORK_ID[net] && tx.executionResult && tx.timestamp !== undefined && tx.timestamp >= Date.parse(q.created_at) && tx.timestamp <= Date.parse(q.expires_at));
       if (rows.length === 100 || candidates.length > 1) return { ...dto(q), retryAfterMs: 60_000, submissionDetail: 'History is incomplete or matching candidates are ambiguous. This purchase remains unresolved.' };
       if (!candidates[0]) {
-        const release = await releaseStatus(service, q, rows);
+        const release = net === "mainnet" ? { canRelease: false, lateMatch: false, headHeight: q.validity_start_height, releaseAfterHeight: null } : await releaseStatus(service, q, rows);
         return { ...dto(q), retryAfterMs: release.canRelease ? 300_000 : 60_000, ...release, submissionDetail: release.canRelease ? 'The payment window has closed and no matching transfer reached the receiving wallet. You can release this purchase.' : release.lateMatch ? 'A transfer matching this amount arrived outside the quote window. Reconciliation required; do not pay again.' : 'No candidate in the latest receiving history yet. This does not prove no broadcast or no charge.' };
       }
       hash = candidates[0].hash;
@@ -145,7 +145,7 @@ export const releaseUnmatchedPurchase = createServerFn({ method: "POST" }).middl
   try {
     await networkHead(service, 'testnet');
     const rows = await rpc(service, 'getTransactionsByAddress', [q.recipient, 100, null], z.array(transactionSchema));
-    const release = await releaseStatus(service, q, rows);
+    const release = net === "mainnet" ? { canRelease: false, lateMatch: false, headHeight: null, releaseAfterHeight: null } : await releaseStatus(service, q, rows);
     if (!release.canRelease) throw new Error(release.lateMatch ? "A matching transfer exists. Reconciliation required; do not pay again." : "The wallet could still deliver this payment. Release is not safe yet.");
   } catch (error) {
     if (error instanceof RpcPending) throw new Error(`Verification service is busy. Try again in ${Math.ceil(error.retryAfterMs / 1000)}s.`);

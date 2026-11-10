@@ -191,12 +191,108 @@ export type Database = {
         }
         Relationships: []
       }
+      mainnet_hub_requests: {
+        Row: {
+          challenge_id: string | null
+          consumed_at: string | null
+          created_at: string
+          expires_at: string
+          id: string
+          kind: string
+          payout_id: string | null
+          user_id: string
+        }
+        Insert: {
+          challenge_id?: string | null
+          consumed_at?: string | null
+          created_at?: string
+          expires_at: string
+          id?: string
+          kind: string
+          payout_id?: string | null
+          user_id: string
+        }
+        Update: {
+          challenge_id?: string | null
+          consumed_at?: string | null
+          created_at?: string
+          expires_at?: string
+          id?: string
+          kind?: string
+          payout_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mainnet_hub_requests_challenge_id_fkey"
+            columns: ["challenge_id"]
+            isOneToOne: false
+            referencedRelation: "nimiq_wallet_challenges"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mainnet_hub_requests_payout_id_fkey"
+            columns: ["payout_id"]
+            isOneToOne: false
+            referencedRelation: "mainnet_payouts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mainnet_hub_requests_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mainnet_hub_signed_payouts: {
+        Row: {
+          broadcast_attempted_at: string
+          payout_id: string
+          request_id: string
+          signed_bytes: string
+          tx_hash: string
+        }
+        Insert: {
+          broadcast_attempted_at?: string
+          payout_id: string
+          request_id: string
+          signed_bytes: string
+          tx_hash: string
+        }
+        Update: {
+          broadcast_attempted_at?: string
+          payout_id?: string
+          request_id?: string
+          signed_bytes?: string
+          tx_hash?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mainnet_hub_signed_payouts_payout_id_fkey"
+            columns: ["payout_id"]
+            isOneToOne: true
+            referencedRelation: "mainnet_payouts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mainnet_hub_signed_payouts_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: true
+            referencedRelation: "mainnet_hub_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       mainnet_payouts: {
         Row: {
           amount_luna: number
+          claim_token: string | null
           claimed_at: string | null
           claimed_by: string | null
           created_at: string
+          expires_at: string | null
           id: string
           network: string
           payment_quote_id: string
@@ -206,13 +302,16 @@ export type Database = {
           treasury_sender: string
           tx_hash: string | null
           user_id: string
+          validity_start_height: number | null
           verified_at: string | null
         }
         Insert: {
           amount_luna: number
+          claim_token?: string | null
           claimed_at?: string | null
           claimed_by?: string | null
           created_at?: string
+          expires_at?: string | null
           id?: string
           network?: string
           payment_quote_id: string
@@ -222,13 +321,16 @@ export type Database = {
           treasury_sender: string
           tx_hash?: string | null
           user_id: string
+          validity_start_height?: number | null
           verified_at?: string | null
         }
         Update: {
           amount_luna?: number
+          claim_token?: string | null
           claimed_at?: string | null
           claimed_by?: string | null
           created_at?: string
+          expires_at?: string | null
           id?: string
           network?: string
           payment_quote_id?: string
@@ -238,6 +340,7 @@ export type Database = {
           treasury_sender?: string
           tx_hash?: string | null
           user_id?: string
+          validity_start_height?: number | null
           verified_at?: string | null
         }
         Relationships: [
@@ -876,6 +979,16 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      accept_mainnet_hub_result: {
+        Args: {
+          _bytes: string
+          _hash: string
+          _id: string
+          _key: string
+          _user: string
+        }
+        Returns: boolean
+      }
       accept_testnet_hub_result: {
         Args: {
           _bytes: string
@@ -885,6 +998,39 @@ export type Database = {
           _user: string
         }
         Returns: boolean
+      }
+      claim_mainnet_payout: {
+        Args: {
+          _expires: string
+          _height: number
+          _id: string
+          _operator: string
+        }
+        Returns: {
+          amount_luna: number
+          claim_token: string | null
+          claimed_at: string | null
+          claimed_by: string | null
+          created_at: string
+          expires_at: string | null
+          id: string
+          network: string
+          payment_quote_id: string
+          reference: string
+          reserve_destination: string
+          status: string
+          treasury_sender: string
+          tx_hash: string | null
+          user_id: string
+          validity_start_height: number | null
+          verified_at: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "mainnet_payouts"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       claim_nimiq_rpc_cache: { Args: { _key: string }; Returns: string }
       claim_testnet_payout: {
@@ -922,6 +1068,10 @@ export type Database = {
       }
       collective_count: { Args: { _manifestation: string }; Returns: undefined }
       collective_state: { Args: { _deployment?: string }; Returns: Json }
+      complete_mainnet_payout: {
+        Args: { _hash: string; _id: string; _operator: string; _token: string }
+        Returns: string
+      }
       complete_testnet_payout: {
         Args: { _hash: string; _id: string; _operator: string; _token: string }
         Returns: string
@@ -966,6 +1116,10 @@ export type Database = {
       release_unmatched_collector_purchase: {
         Args: { _id: string; _user_id: string }
         Returns: undefined
+      }
+      reopen_unbroadcast_mainnet_payout: {
+        Args: { _id: string; _operator: string }
+        Returns: boolean
       }
       reopen_unbroadcast_testnet_payout: {
         Args: { _id: string; _operator: string }

@@ -6,7 +6,7 @@ import { addressFromBytes, normalizeAddress, isValidNimiqAddress } from './rules
 // Narrow Albatross extended/basic-account single-Ed25519 decoder. No WASM on the server.
 // Official core-rs-albatross primitives/transaction serializeContent and signature_proof;
 // parity is tested against installed Core. Other account/proof formats fail closed.
-export type HubPayoutIntent = { sender: string; recipient: string; amountLuna: number; reference: string; validityStartHeight: number };
+export type HubPayoutIntent = { sender: string; recipient: string; amountLuna: number; reference: string; validityStartHeight: number; networkId?: number };
 export function verifyHubTransaction(serializedTx: string, expectedHash: string, intent: HubPayoutIntent) {
   if (!/^(?:[a-f0-9]{2})+$/i.test(serializedTx) || serializedTx.length > 4096 || !/^[a-f0-9]{64}$/i.test(expectedHash)) throw new Error('Invalid transaction encoding.');
   if (!Number.isSafeInteger(intent.amountLuna) || intent.amountLuna <= 0 || !Number.isInteger(intent.validityStartHeight) || intent.validityStartHeight < 0 || intent.validityStartHeight > 0xffffffff || !isValidNimiqAddress(intent.sender) || !isValidNimiqAddress(intent.recipient)) throw new Error('Invalid payout intent.');
@@ -27,7 +27,7 @@ export function verifyHubTransaction(serializedTx: string, expectedHash: string,
   const value = number(8), fee = number(8), height = number(4), network = byte(), flags = byte();
   const contentEnd = pos;
   const proof = vector();
-  if (pos !== bytes.length || senderType !== 0 || recipientType !== 0 || senderData.length !== 0 || network !== 5 || flags !== 0 || fee !== 0 || proof.length !== 98 || proof[0] !== 0 || proof[33] !== 0) throw new Error('Unsupported testnet transaction or proof.');
+  if (pos !== bytes.length || senderType !== 0 || recipientType !== 0 || senderData.length !== 0 || network !== (intent.networkId ?? 5) || flags !== 0 || fee !== 0 || proof.length !== 98 || proof[0] !== 0 || proof[33] !== 0) throw new Error('Unsupported network, transaction or proof.');
   const reference = new TextEncoder().encode(intent.reference);
   if (!reference.length || reference.length > 64 || bytesToHex(data) !== bytesToHex(reference) || addressFromBytes(sender) !== normalizeAddress(intent.sender) || addressFromBytes(recipient) !== normalizeAddress(intent.recipient) || value !== intent.amountLuna || height !== intent.validityStartHeight) throw new Error('Signed transaction intent mismatch.');
   // Content is BE16 recipient-data length + data + fields + empty Albatross sender vector.

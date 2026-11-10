@@ -1,8 +1,9 @@
 // Import the Hub only inside browser actions: its module reads browser globals.
 import { hostNetwork } from './index';
+import { HUB_ENDPOINTS, type Net } from './net';
 
 export const TESTNET_HUB_ENDPOINT = 'https://hub.nimiq-testnet.com';
-export type HubIntent = { id: string; kind: 'ownership' | 'payout'; signer: string; message?: string; recipient?: string; amountLuna?: number; reference?: string; validityStartHeight?: number };
+export type HubIntent = { id: string; kind: 'ownership' | 'payout'; signer: string; message?: string; recipient?: string; amountLuna?: number; reference?: string; validityStartHeight?: number; network?: Net };
 export type HubResponse = { id: string; kind: 'ownership'; signer: string; publicKey: string; signature: string } | { id: string; kind: 'payout'; serializedTx: string; hash: string };
 const hex = (bytes: Uint8Array) => Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('');
 
@@ -13,17 +14,20 @@ export async function openHub(intent: HubIntent) {
   await requireHubBrowser();
   const { default: HubApi } = await import('@nimiq/hub-api');
   const behavior = new HubApi.RedirectRequestBehavior(`${window.location.origin}/hub-return`, { id: intent.id, kind: intent.kind });
-  const hub = new HubApi<0>(TESTNET_HUB_ENDPOINT, behavior);
+  const net: Net = intent.network ?? 'testnet';
+  const hub = new HubApi<0>(HUB_ENDPOINTS[net], behavior);
   sessionStorage.setItem('nimaura-hub-pending', intent.id);
+  sessionStorage.setItem('nimaura-hub-network', net);
+  const appName = net === 'mainnet' ? 'NIMAURA' : 'NIMAURA Testnet';
   if (intent.kind === 'ownership' && intent.message) {
-    await hub.signMessage({ appName: 'NIMAURA Testnet', signer: intent.signer, message: intent.message });
+    await hub.signMessage({ appName, signer: intent.signer, message: intent.message });
   } else if (intent.kind === 'payout' && intent.recipient && intent.amountLuna && intent.reference && intent.validityStartHeight !== undefined) {
-    await hub.signTransaction({ appName: 'NIMAURA Testnet', sender: intent.signer, recipient: intent.recipient, value: intent.amountLuna, fee: 0, extraData: new TextEncoder().encode(intent.reference), validityStartHeight: intent.validityStartHeight });
+    await hub.signTransaction({ appName, sender: intent.signer, recipient: intent.recipient, value: intent.amountLuna, fee: 0, extraData: new TextEncoder().encode(intent.reference), validityStartHeight: intent.validityStartHeight });
   } else throw new Error('Incomplete server wallet request.');
 }
 export async function recoverHubResponse(onResult: (response: HubResponse) => void, onError: (error: Error) => void) {
   const { default: HubApi } = await import('@nimiq/hub-api');
-  const hub = new HubApi(TESTNET_HUB_ENDPOINT);
+  const hub = new HubApi(HUB_ENDPOINTS[pendingHubNetwork()]);
   const save = (response: HubResponse) => {
     // Local reload recovery only; these bytes are never put in URLs or public backend rows.
     sessionStorage.setItem('nimaura-hub-result', JSON.stringify(response));
@@ -39,3 +43,4 @@ export async function recoverHubResponse(onResult: (response: HubResponse) => vo
   if (saved) { try { onResult(JSON.parse(saved)); } catch { sessionStorage.removeItem('nimaura-hub-result'); } }
   await hub.checkRedirectResponse();
 }
+export function pendingHubNetwork(): Net { return sessionStorage.getItem('nimaura-hub-network') === 'mainnet' ? 'mainnet' : 'testnet'; }

@@ -85,7 +85,7 @@ function Account() {
       </div>
 
       <WalletPanel />
-      {access.data === true && <TestnetPayoutQueue />}
+      {access.data === true && <><TestnetPayoutQueue /><TestnetPayoutQueue network="mainnet" /></>}
 
       <div className="mt-4 space-y-3 rounded-sm border p-4">
         <label className="block">

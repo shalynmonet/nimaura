@@ -9,11 +9,12 @@ import { beginHubOwnership, beginHubPayout } from '@/lib/nimiq/hub.functions';
 import { openHub, requireHubBrowser } from '@/lib/nimiq/hub';
 import { useDeliveryFeedback } from '@/lib/nimiq/use-delivery-feedback';
 
-export function TestnetPayoutQueue() {
+export function TestnetPayoutQueue({ network = 'testnet' }: { network?: 'mainnet' | 'testnet' }) {
+  const unit = network === 'mainnet' ? 'NIM' : 'test NIM', key = [`${network}-payout-queue`];
   const list = useServerFn(listPayouts), approve = useServerFn(beginHubPayout), reconcile = useServerFn(reconcilePayout), reopen = useServerFn(reopenPayout);
   const treasuryProof = useServerFn(beginHubOwnership);
   const qc = useQueryClient();
-  const queue = useQuery({ queryKey: ["testnet-payout-queue"], queryFn: () => list() });
+  const queue = useQuery({ queryKey: key, queryFn: () => list({ data: { network } }) });
   const [busy, setBusy] = useState(false), [message, setMessage] = useState("");
   const [hashes, setHashes] = useState<Record<string,string>>({});
   const { feedback, remainingSeconds } = useDeliveryFeedback();
@@ -24,43 +25,44 @@ export function TestnetPayoutQueue() {
       let hash: string | undefined = hashes[id] || undefined;
       if (send) {
         await requireHubBrowser();
-        const intent = await approve({ data: { id } });
+        const intent = await approve({ data: { id, network } });
         await openHub(intent);
         return;
       }
       // Finality checks are paced: keep checking this same transfer automatically (never sends).
-      let result = await reconcile({ data: { id, ...(hash ? { txHash: hash } : {}) } });
+      let result = await reconcile({ data: { id, network, ...(hash ? { txHash: hash } : {}) } });
       for (let round = 1; result.status !== 'paid' && round <= 15; round++) {
         const wait = ('retryAfterMs' in result && typeof result.retryAfterMs === 'number' ? result.retryAfterMs : 10_000);
         setMessage(`Still confirming finality (step ${round} of up to 15). Checking again automatically — do not resend.`);
         await new Promise((r) => setTimeout(r, Math.min(Math.max(wait, 3_000), 30_000)));
-        result = await reconcile({ data: { id, ...(hash ? { txHash: hash } : {}) } });
+        result = await reconcile({ data: { id, network, ...(hash ? { txHash: hash } : {}) } });
       }
       setMessage(feedback(result));
     } catch (error) { setMessage(await walletError(error)); }
-    finally { setBusy(false); await qc.invalidateQueries({ queryKey: ["testnet-payout-queue"] }); }
+    finally { setBusy(false); await qc.invalidateQueries({ queryKey: key }); }
   }
   async function reopenClaim(id: string) {
     if (busy) return;
     setBusy(true); setMessage("");
     try {
-      const r = await reopen({ data: { id } });
-      setMessage(r.status === "queued" ? "No transfer was signed or found on testnet. This payout is queued again; approve it when ready." : feedback(r));
+      const r = await reopen({ data: { id, network } });
+      setMessage(r.status === "queued" ? "No transfer was signed or found on this network. This payout is queued again; approve it when ready." : feedback(r));
     } catch (e) { setMessage(await walletError(e)); }
-    finally { setBusy(false); await qc.invalidateQueries({ queryKey: ["testnet-payout-queue"] }); }
+    finally { setBusy(false); await qc.invalidateQueries({ queryKey: key }); }
   }
   async function proveTreasury(id: string, address: string) {
     setBusy(true);
-    try { await requireHubBrowser(); await openHub(await treasuryProof({ data: { address, purpose: 'treasury', payoutId: id } })); }
+    try { await requireHubBrowser(); await openHub(await treasuryProof({ data: { address, purpose: 'treasury', payoutId: id, network } })); }
     catch (e) { setMessage(e instanceof Error ? e.message : 'Treasury proof unavailable.'); }
     finally { setBusy(false); }
   }
   return <section className="mt-8 space-y-4 border-t pt-6">
-    <h2 className="font-display text-2xl text-ivory">Testnet payout queue</h2>
+    <h2 className="font-display text-2xl text-ivory">{network === "mainnet" ? "Mainnet payout queue" : "Testnet payout queue"}</h2>
     {queue.error && <p role="alert" className="text-sm text-warning">Queue unavailable.</p>}
-    {!queue.data?.length && <p className="text-sm text-muted-foreground">No testnet payouts.</p>}
+    {!queue.data?.length && <p className="text-sm text-muted-foreground">No {network} payouts.</p>}
     <ul className="divide-y">{queue.data?.map((p) => <li key={p.id} className="space-y-2 py-4">
-      <p className="text-sm text-ivory">{p.amount_luna / 100_000} test NIM · {p.status}</p>
+      <p className="text-sm text-ivory">{p.amount_luna / 100_000} {unit} · {p.status === "paid" ? "delivered" : p.status === "queued" ? "pending allocation" : p.status}</p>
+      <p className="text-xs text-muted-foreground">Network fee: 0 {unit} — the full 50% reaches the Reserve.</p>
       <p className="break-all font-mono text-xs text-muted-foreground">From: {p.treasury_sender}</p>
       <p className="break-all font-mono text-xs text-muted-foreground">To: {p.reserve_destination}</p>
       <p className="break-all font-mono text-xs text-muted-foreground">{p.reference}</p>

@@ -120,6 +120,13 @@
       "when": 1794336497597,
       "tag": "0016_isolated_mainnet_payouts",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1794336797275,
+      "tag": "0017_mainnet_hub_payout_approval",
+      "breakpoints": true
     }
   ]
 }
