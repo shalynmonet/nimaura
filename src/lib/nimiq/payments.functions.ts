@@ -145,7 +145,7 @@ export const releaseUnmatchedPurchase = createServerFn({ method: "POST" }).middl
   try {
     await networkHead(service, 'testnet');
     const rows = await rpc(service, 'getTransactionsByAddress', [q.recipient, 100, null], z.array(transactionSchema));
-    const release = net === "mainnet" ? { canRelease: false, lateMatch: false, headHeight: null, releaseAfterHeight: null } : await releaseStatus(service, q, rows);
+    const release = await releaseStatus(service, q, rows);
     if (!release.canRelease) throw new Error(release.lateMatch ? "A matching transfer exists. Reconciliation required; do not pay again." : "The wallet could still deliver this payment. Release is not safe yet.");
   } catch (error) {
     if (error instanceof RpcPending) throw new Error(`Verification service is busy. Try again in ${Math.ceil(error.retryAfterMs / 1000)}s.`);
