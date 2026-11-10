@@ -139,9 +139,9 @@ export const releaseUnmatchedPurchase = createServerFn({ method: "POST" }).middl
   const { data: q } = await supabaseAdmin.from("nimiq_payment_quotes").select("*").eq("id", data.id).eq("user_id", context.userId).single();
   if (!q || q.network !== "testnet") throw new Error("Payment not found.");
   if (q.status !== "pending" || q.tx_hash || q.candidate_tx_hash) throw new Error("This purchase has payment evidence or is not unresolved. It cannot be released.");
-  const url = rpcUrl(net);
+  const url = rpcUrl("testnet");
   if (!url) throw new Error("Trusted verification is not configured.");
-  const service: TrustedRpc = { url, authorization: rpcAuth(net), coordination: rpcCoordination(supabaseAdmin) };
+  const service: TrustedRpc = { url, authorization: rpcAuth("testnet"), coordination: rpcCoordination(supabaseAdmin) };
   try {
     await networkHead(service, 'testnet');
     const rows = await rpc(service, 'getTransactionsByAddress', [q.recipient, 100, null], z.array(transactionSchema));
