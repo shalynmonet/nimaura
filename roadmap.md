@@ -1,4 +1,5 @@
 # NIMAURA roadmap
+- [ ] Manual TESTNET demo: published queue/Reserve/admin and trusted history checked; only manual payout configuration enabled; 38 focused tests pass; existing 58ea448c payout selected without claiming or sending. Release requested; device ownership proof, transfer approval, and finalized delivery await SHA-I.
 - [x] Stage 1: isolated `/entity-study` Seraph/Choir/Foldkeeper four-path preview, 20 focused tests and signed-in motion/phone checks; read-only audit: first eligible drop 9, Nov 9 00:00–Nov 10 00:00 UTC, no protected future drops; unchanged hosted assignments, not published. Native device review pending.
 - [ ] Stage 2: remaining four entities, trusted version snapshots, curated seven-identity rotation and rollover checks (blocked on stage-one visual approval).
 - [x] Fifth purchase diagnosed: pending/null hash, no matching recipient-history candidate; original wallet outcome unknowable from old logs. Normal preview checker confirms unresolved, no payment requested/published.
