@@ -17,6 +17,7 @@ export function WalletPanel() {
   const verifyChallenge = useServerFn(verifyWalletChallenge);
   const hubOwnership = useServerFn(beginHubOwnership);
   const [webReserve, setWebReserve] = useState('');
+  const [mainReserve, setMainReserve] = useState('');
   const [network, setNetwork] = useState<Network | undefined>();
   const [accounts, setAccounts] = useState<string[]>([]);
   const [selected, setSelected] = useState("");
@@ -57,11 +58,11 @@ export function WalletPanel() {
     finally { setBusy(false); }
   }
   const visible = (links.data ?? []).filter((link) => !network || link.network === network);
-  async function proveWebReserve() {
+  async function proveWebReserve(net: 'testnet' | 'mainnet' = 'testnet') {
     setBusy(true);
     try {
       await requireHubBrowser();
-      const intent = await hubOwnership({ data: { address: webReserve, purpose: 'reserve' } });
+      const intent = await hubOwnership({ data: { address: net === 'mainnet' ? mainReserve : webReserve, purpose: 'reserve', network: net } });
       await openHub(intent);
     } catch (e) { setStatus(e instanceof Error ? e.message : 'Browser wallet unavailable.'); }
     finally { setBusy(false); }
@@ -89,7 +90,12 @@ export function WalletPanel() {
     <label className="block text-xs text-muted-foreground">Testnet web-wallet Reserve address
       <input aria-label="Testnet web-wallet Reserve address" value={webReserve} onChange={e => setWebReserve(e.target.value)} className="mt-1 w-full rounded-sm border border-input bg-card px-3 py-2 font-mono text-xs text-ivory" />
     </label>
-    <Button variant="outline" disabled={busy || !isValidNimiqAddress(webReserve)} onClick={proveWebReserve}><ShieldCheck />Verify testnet Reserve · browser only</Button>
+    <Button variant="outline" disabled={busy || !isValidNimiqAddress(webReserve)} onClick={() => proveWebReserve('testnet')}><ShieldCheck />Verify testnet Reserve · browser only</Button>
+    <label className="block text-xs text-muted-foreground">Mainnet Reserve address
+      <input aria-label="Mainnet Reserve address" value={mainReserve} onChange={e => setMainReserve(e.target.value)} className="mt-1 w-full rounded-sm border border-input bg-card px-3 py-2 font-mono text-xs text-ivory" />
+    </label>
+    <Button variant="outline" disabled={busy || !isValidNimiqAddress(mainReserve)} onClick={() => proveWebReserve('mainnet')}><ShieldCheck />Verify mainnet Reserve · browser only</Button>
+    {(links.data ?? []).filter(l => l.network === 'mainnet' && l.is_reserve).map(l => <p key={l.id} className="break-all text-xs text-gold">Verified mainnet Reserve: <span className="font-mono text-ivory">{l.address}</span></p>)}
     {status && <p role="status" className="break-words text-xs text-muted-foreground">{status}</p>}
     <p className="text-xs text-muted-foreground">NIMAURA never asks for your private key or recovery phrase.</p>
   </section>;

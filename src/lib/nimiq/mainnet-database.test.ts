@@ -111,3 +111,17 @@ describe.sequential("evidence-based purchase recovery (real SQL)", () => {
     await expect(db.query(`SELECT public.pin_late_payment('00000000-0000-4000-8000-0000000000f2','${other}','${late}')`)).rejects.toThrow();
   });
 });
+describe.sequential("mainnet Reserve ownership proof", () => {
+  it("binds a mainnet Reserve proof to its collector, network and challenge without touching testnet links", async () => {
+    const u = collector, ch = "00000000-0000-4000-8000-0000000000b1", ch2 = "00000000-0000-4000-8000-0000000000b2";
+    await db.exec(`INSERT INTO public.nimiq_wallet_links(user_id,address,public_key,network,is_reserve) VALUES('${u}','TESTRES','${"1".repeat(64)}','testnet',true);
+      INSERT INTO public.nimiq_wallet_challenges(id,user_id,address,network,purpose,message,expires_at) VALUES('${ch}','${u}','MAINRES','mainnet','reserve','m1',now()+interval '5 minutes'),('${ch2}','${u}','EXPIRED','mainnet','reserve','m2',now()-interval '1 minute');`);
+    await expect(db.query(`SELECT public.consume_nimiq_wallet_challenge('${ch}','${other}','${"2".repeat(64)}')`)).rejects.toThrow();
+    await expect(db.query(`SELECT public.consume_nimiq_wallet_challenge('${ch2}','${u}','${"2".repeat(64)}')`)).rejects.toThrow();
+    await db.query(`SELECT public.consume_nimiq_wallet_challenge('${ch}','${u}','${"2".repeat(64)}')`);
+    await expect(db.query(`SELECT public.consume_nimiq_wallet_challenge('${ch}','${u}','${"2".repeat(64)}')`)).rejects.toThrow();
+    const r = await db.query<{ network: string; address: string }>(`SELECT network,address FROM public.nimiq_wallet_links WHERE user_id='${u}' AND is_reserve ORDER BY network`);
+    expect(r.rows).toEqual([{ network: "mainnet", address: "MAINRES" }, { network: "testnet", address: "TESTRES" }]);
+    await expect(as("authenticated", u, `INSERT INTO public.nimiq_wallet_links(user_id,address,public_key,network,is_reserve) VALUES('${u}','FAKE','x','mainnet',true)`)).rejects.toThrow(/permission denied/);
+  });
+});
