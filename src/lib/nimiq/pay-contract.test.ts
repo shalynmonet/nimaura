@@ -25,6 +25,6 @@ describe('real Pay testnet EarlyResolve authorization (public read-only fixture)
   it.each(['value', 'validityStartHeight'])('rejects changed signed %s', field => {
     expect(() => verifyPayContract({ ...tx, [field]: tx[field as 'value'] + 1 }, payer, contract)).toThrow();
   });
-  it('rejects mainnet', () => { expect(() => verifyPayContract({ ...tx, networkId: 24 }, payer, contract)).toThrow(); });
+  it('rejects unknown networks', () => { expect(() => verifyPayContract({ ...tx, networkId: 99 }, payer, contract)).toThrow(); });
   it('rejects swapped proof parties', () => { expect(() => verifyPayContract({ ...tx, proof: '01' + tx.proof.slice(198) + tx.proof.slice(2, 198) }, payer, contract)).toThrow(); });
 });

@@ -107,7 +107,8 @@ export async function rpc<T>(service: TrustedRpc, method: string, params: unknow
   return result;
 }
 export function assertRpcNetwork(network: Network, reported: number | string) {
-  if (network !== "testnet" || (reported !== 5 && reported !== "TestAlbatross")) throw new Error("Only the trusted testnet network is permitted.");
+  const ok = network === "mainnet" ? reported === 24 || reported === "MainAlbatross" : reported === 5 || reported === "TestAlbatross";
+  if (!ok) throw new Error(`Only the trusted ${network} network is permitted.`);
 }
 export async function networkHead(service: TrustedRpc, network: Network, fresh = false) {
   try {
@@ -150,7 +151,7 @@ export async function verifyTransfer(service: TrustedRpc, expected: ExpectedPaym
   }
   if (!tx) return false;
   let boundExpected = expected;
-  if (collectorPayContract && reference === undefined && expected.network === 'testnet' && tx.fromType === 2) {
+  if (collectorPayContract && reference === undefined && tx.fromType === 2) {
     // State fields are immutable contract authorization, not relatedAddresses.
     // The configured trusted node's canonical testnet head was checked above.
     const contract = await rpc(service, 'getAccountByAddress', [tx.from], z.object({ address, type: z.literal('htlc'), sender: address, recipient: address }));

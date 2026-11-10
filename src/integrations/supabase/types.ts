@@ -191,6 +191,79 @@ export type Database = {
         }
         Relationships: []
       }
+      mainnet_payouts: {
+        Row: {
+          amount_luna: number
+          claimed_at: string | null
+          claimed_by: string | null
+          created_at: string
+          id: string
+          network: string
+          payment_quote_id: string
+          reference: string
+          reserve_destination: string
+          status: string
+          treasury_sender: string
+          tx_hash: string | null
+          user_id: string
+          verified_at: string | null
+        }
+        Insert: {
+          amount_luna: number
+          claimed_at?: string | null
+          claimed_by?: string | null
+          created_at?: string
+          id?: string
+          network?: string
+          payment_quote_id: string
+          reference: string
+          reserve_destination: string
+          status?: string
+          treasury_sender: string
+          tx_hash?: string | null
+          user_id: string
+          verified_at?: string | null
+        }
+        Update: {
+          amount_luna?: number
+          claimed_at?: string | null
+          claimed_by?: string | null
+          created_at?: string
+          id?: string
+          network?: string
+          payment_quote_id?: string
+          reference?: string
+          reserve_destination?: string
+          status?: string
+          treasury_sender?: string
+          tx_hash?: string | null
+          user_id?: string
+          verified_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mainnet_payouts_claimed_by_fkey"
+            columns: ["claimed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mainnet_payouts_payment_quote_id_fkey"
+            columns: ["payment_quote_id"]
+            isOneToOne: true
+            referencedRelation: "nimiq_payment_quotes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mainnet_payouts_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       manifestations: {
         Row: {
           config: Json
@@ -199,6 +272,7 @@ export type Database = {
           entity_id: string
           id: string
           intention: string
+          mainnet_quote_id: string | null
           payment_id: string | null
           seed: number
           source: string
@@ -212,6 +286,7 @@ export type Database = {
           entity_id: string
           id?: string
           intention: string
+          mainnet_quote_id?: string | null
           payment_id?: string | null
           seed: number
           source: string
@@ -225,6 +300,7 @@ export type Database = {
           entity_id?: string
           id?: string
           intention?: string
+          mainnet_quote_id?: string | null
           payment_id?: string | null
           seed?: number
           source?: string
@@ -244,6 +320,13 @@ export type Database = {
             columns: ["entity_id"]
             isOneToOne: false
             referencedRelation: "entities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "manifestations_mainnet_quote_id_fkey"
+            columns: ["mainnet_quote_id"]
+            isOneToOne: false
+            referencedRelation: "nimiq_payment_quotes"
             referencedColumns: ["id"]
           },
           {
@@ -850,6 +933,10 @@ export type Database = {
       defer_nimiq_rpc: {
         Args: { _key: string; _until: string }
         Returns: undefined
+      }
+      fulfill_mainnet_payment: {
+        Args: { _hash: string; _id: string; _user_id: string }
+        Returns: string
       }
       fulfill_testnet_payment: {
         Args: { _hash: string; _id: string; _user_id: string }

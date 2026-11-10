@@ -25,7 +25,7 @@ function addressBytes(value: string) {
 }
 export function payTransactionContent(tx: PayTransaction) {
   const data = hexToBytes(tx.recipientData);
-  if (data.length > 64 || tx.senderData !== '' || tx.fromType !== 2 || tx.toType !== 0 || tx.flags !== 0 || tx.networkId !== 5 || tx.fee !== 0) throw new Error('Unsupported Pay contract transaction.');
+  if (data.length > 64 || tx.senderData !== '' || tx.fromType !== 2 || tx.toType !== 0 || tx.flags !== 0 || (tx.networkId !== 5 && tx.networkId !== 24) || tx.fee !== 0) throw new Error('Unsupported Pay contract transaction.');
   const result = new Uint8Array(67 + data.length); let pos = 0;
   const put = (bytes: Uint8Array) => { result.set(bytes, pos); pos += bytes.length; };
   const uint = (value: number, size: number) => {
